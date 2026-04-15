@@ -6,12 +6,13 @@ from httpx import AsyncClient
 
 class TestWebhook:
     async def test_webhook_aceita_payload_valido(self, client: AsyncClient):
+        """Evento sem mensagem de usuário retorna 'ignored'."""
         resp = await client.post(
             "/webhook/",
-            json={"event": "messages.upsert", "data": {}},
+            json={"event": "qr.updated", "data": {}},
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] == "received"
+        assert resp.json()["status"] == "ignored"
 
     async def test_webhook_rejeita_json_invalido(self, client: AsyncClient):
         resp = await client.post(
@@ -25,6 +26,6 @@ class TestWebhook:
         """Em ambiente de desenvolvimento, webhook sem assinatura deve funcionar."""
         resp = await client.post(
             "/webhook/",
-            json={"event": "qr.updated", "data": {}},
+            json={"event": "connection.update", "data": {"state": "open"}},
         )
         assert resp.status_code == 200

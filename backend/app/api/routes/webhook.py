@@ -1,13 +1,19 @@
-"""Webhook da Evolution API — recebe mensagens do WhatsApp."""
+"""Webhook da Evolution API — recebe e processa mensagens do WhatsApp."""
+
+from __future__ import annotations
 
 import hashlib
 import hmac
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.conversation.engine import ConversationEngine
+from app.core.whatsapp.webhook_parser import parse_webhook
+from app.database.session import get_db
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -15,9 +21,10 @@ settings = get_settings()
 
 
 def verify_webhook_signature(body: bytes, signature: str | None) -> bool:
-    """Valida a assinatura HMAC do webhook da Evolution API."""
+    """Valida assinatura HMAC do webhook da Evolution API."""
     if not signature:
-        return settings.env != "production"
+        # Em desenvolvimento, permite sem assinatura
+        return not settings.is_production
 
     expected = hmac.new(
         settings.evolution_api_key.encode(),
@@ -31,11 +38,13 @@ def verify_webhook_signature(body: bytes, signature: str | None) -> bool:
 @router.post("/")
 async def receive_webhook(
     request: Request,
+    db: AsyncSession = Depends(get_db),
     x_hub_signature: str | None = Header(default=None, alias="x-hub-signature-256"),
 ) -> dict[str, str]:
     """
-    Recebe webhook da Evolution API com mensagens do WhatsApp.
-    O processamento real da conversa será implementado no Dia 2.
+    Recebe webhook da Evolution API.
+    Parseia a mensagem e despacha para o ConversationEngine.
+    Retorna 200 imediatamente — processamento é fire-and-forget (sem await bloqueante).
     """
     body = await request.body()
 
@@ -54,10 +63,23 @@ async def receive_webhook(
         )
 
     event_type = payload.get("event", "unknown")
-    logger.info("Webhook recebido: event=%s", event_type)
+    logger.debug("Webhook recebido: event=%s", event_type)
 
-    # TODO Dia 2: processar mensagem e disparar conversation engine
-    # from app.core.conversation.engine import ConversationEngine
-    # await ConversationEngine.handle_webhook(payload)
+    # Parseia payload para InboundMessage
+    inbound = parse_webhook(payload)
 
-    return {"status": "received"}
+    if inbound is None:
+        logger.debug("Evento ignorado (não é mensagem de usuário): %s", event_type)
+        return {"status": "ignored"}
+
+    # Processa a mensagem
+    try:
+        engine = ConversationEngine(db=db)
+        await engine.handle(inbound)
+    except Exception:
+        logger.exception(
+            "Erro ao processar mensagem de %s", inbound.phone
+        )
+        # Retorna 200 mesmo com erro — não queremos que a Evolution API faça retry spam
+
+    return {"status": "processed"}

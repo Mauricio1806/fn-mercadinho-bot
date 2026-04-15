@@ -199,6 +199,10 @@ class BusinessConfig:
         return self._raw.get("personalidade", {}).get("girias_baianas", True)
 
     @property
+    def tratamento(self) -> str:
+        return self._raw.get("personalidade", {}).get("tratamento", "você")
+
+    @property
     def tom(self) -> str:
         return self._raw.get("personalidade", {}).get("tom", "amigável e informal")
 
