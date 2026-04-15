@@ -31,7 +31,11 @@ def next_state_from_response(
 
         case ConversationState.MAIN_MENU:
             # Claude respondeu sobre pedido?
-            if any(k in resp_lower for k in ["o que deseja", "o que você quer", "me diga o que"]):
+            order_phrases = [
+                "o que deseja", "o que você quer", "me diga o que",
+                "deseja pedir", "quer pedir", "o que gostaria", "vai querer",
+            ]
+            if any(k in resp_lower for k in order_phrases):
                 return ConversationState.ORDER_ITEMS
             # Respondeu sobre delivery?
             if any(k in resp_lower for k in ["condomínio", "bloco", "taxa", "tempo estimado"]):

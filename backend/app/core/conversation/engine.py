@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 
@@ -18,6 +17,11 @@ from app.core.conversation.handlers import (
     next_state_from_response,
     trim_history,
 )
+from app.core.notifications.notify_owner import notify_new_order
+from app.core.orders.context import OrderContext
+from app.core.orders.delivery_validator import extract_block_and_apartment, validate_delivery
+from app.core.orders.parser import parse_delivery_type, parse_items_from_claude
+from app.core.orders.service import OrderService
 from app.core.whatsapp.client import WhatsAppClient, get_whatsapp_client
 from app.core.whatsapp.types import InboundMessage
 from app.models.conversation import Conversation, ConversationState, ConversationStatus
@@ -30,12 +34,15 @@ logger = logging.getLogger(__name__)
 class ConversationEngine:
     """
     Orquestra o fluxo completo de atendimento:
-    1. Identifica/cria cliente
-    2. Carrega/cria conversa ativa
-    3. Chama Claude com histórico + system prompt do estado
-    4. Atualiza estado da máquina
-    5. Persiste mensagens
-    6. Envia resposta via WhatsApp
+    1. Rate limit check
+    2. Identifica/cria cliente
+    3. Carrega/cria conversa ativa
+    4. Chama Claude com histórico + system prompt do estado
+    5. Extrai contexto do pedido da resposta
+    6. Atualiza estado da máquina
+    7. Cria Order no BD quando chega em ORDER_PAYMENT
+    8. Persiste mensagens
+    9. Envia resposta via WhatsApp
     """
 
     def __init__(
@@ -53,7 +60,13 @@ class ConversationEngine:
     async def handle(self, message: InboundMessage) -> None:
         """Ponto de entrada principal — processa uma mensagem recebida."""
 
-        # Verifica bloqueio e horário antes de qualquer coisa
+        # Rate limiting por número
+        from app.api.middleware.rate_limit import is_rate_limited
+        if await is_rate_limited(message.phone):
+            logger.warning("Rate limit: ignorando mensagem de %s", message.phone)
+            return
+
+        # Verifica tipo e horário
         if not await self._is_allowed(message):
             return
 
@@ -67,17 +80,28 @@ class ConversationEngine:
         # Obtém ou cria conversa ativa
         conversation = await self._get_or_create_conversation(customer)
 
+        # Carrega contexto do pedido
+        order_ctx = OrderContext.from_json(conversation.context_json)
+
         # Carrega histórico de mensagens
         history = self._build_history(conversation)
 
         # System prompt baseado no estado atual
         system_prompt = build_system_prompt(conversation.state, self._business)
 
+        # Monta mensagem aumentada com contexto quando em estados de pedido
+        augmented_message = self._augment_message(message.text, conversation.state, order_ctx)
+
         # Chama Claude
         ai_response, tokens = await self._claude.chat(
             system_prompt=system_prompt,
             history=history,
-            user_message=message.text,
+            user_message=augmented_message,
+        )
+
+        # Atualiza contexto do pedido com base na resposta do Claude
+        order_ctx = self._update_order_context(
+            order_ctx, conversation.state, ai_response, message.text
         )
 
         # Determina próximo estado
@@ -85,7 +109,16 @@ class ConversationEngine:
             conversation.state, ai_response, message.text
         )
 
-        # Persiste mensagens
+        # Ação especial: cria o pedido no BD quando atinge ORDER_PAYMENT
+        if (
+            next_state == ConversationState.ORDER_PAYMENT
+            and conversation.state != ConversationState.ORDER_PAYMENT
+            and not order_ctx.order_id
+            and order_ctx.items
+        ):
+            order_ctx = await self._finalize_order(customer, order_ctx)
+
+        # Persiste mensagens e contexto
         await self._save_messages(
             conversation=conversation,
             user_text=message.text,
@@ -94,10 +127,11 @@ class ConversationEngine:
             whatsapp_msg_id=message.message_id,
         )
 
-        # Atualiza estado da conversa
+        # Atualiza estado e contexto da conversa
+        conversation.context_json = order_ctx.to_json()
         await self._update_conversation_state(conversation, next_state)
 
-        # Envia resposta ao cliente (typing + texto)
+        # Envia resposta ao cliente
         await self._whatsapp.send_typing(message.phone, duration_ms=1500)
         await self._whatsapp.send_text(message.phone, ai_response)
 
@@ -109,10 +143,11 @@ class ConversationEngine:
             tokens,
         )
 
+    # ── Helpers ────────────────────────────────────────────────────────────────
+
     async def _is_allowed(self, message: InboundMessage) -> bool:
-        """Verifica se o atendimento está dentro do horário."""
+        """Verifica tipo de mensagem e horário de funcionamento."""
         if not message.is_text():
-            # Não processamos áudio/imagem por enquanto
             if message.message_type.value in ("audio", "image"):
                 await self._whatsapp.send_text(
                     message.phone,
@@ -121,16 +156,13 @@ class ConversationEngine:
             return False
 
         now = datetime.now(timezone.utc)
-        # Converte horários do business.yaml para hoje
         try:
             abertura_h, abertura_m = map(int, self._business.horario_abertura.split(":"))
             fechamento_h, fechamento_m = map(int, self._business.horario_fechamento.split(":"))
 
-            # Usa horário de Brasília (UTC-3)
+            # Hora de Brasília (UTC-3)
             hora_brasilia = (now.hour - 3) % 24
-            minuto = now.minute
-
-            hora_atual = hora_brasilia * 60 + minuto
+            hora_atual = hora_brasilia * 60 + now.minute
             hora_abre = abertura_h * 60 + abertura_m
             hora_fecha = fechamento_h * 60 + fechamento_m
 
@@ -140,7 +172,7 @@ class ConversationEngine:
                 )
                 return False
         except Exception:
-            pass  # Se falhar na verificação de horário, permite atendimento
+            pass
 
         return True
 
@@ -151,21 +183,16 @@ class ConversationEngine:
         customer = result.scalar_one_or_none()
 
         if not customer:
-            customer = Customer(
-                phone=message.phone,
-                name=message.name,
-            )
+            customer = Customer(phone=message.phone, name=message.name)
             self._db.add(customer)
             await self._db.flush()
-            logger.info("Novo cliente criado: %s", message.phone)
-
+            logger.info("Novo cliente: %s", message.phone)
         elif message.name and not customer.name:
             customer.name = message.name
 
         return customer
 
     async def _get_or_create_conversation(self, customer: Customer) -> Conversation:
-        """Retorna conversa ativa ou cria uma nova."""
         result = await self._db.execute(
             select(Conversation)
             .options(selectinload(Conversation.messages))
@@ -185,22 +212,101 @@ class ConversationEngine:
             )
             self._db.add(conversation)
             await self._db.flush()
-            logger.info("Nova conversa criada para %s", customer.phone)
 
         return conversation
 
     def _build_history(self, conversation: Conversation) -> list[dict[str, str]]:
-        """Constrói histórico de mensagens no formato esperado pelo Claude."""
-        # Acessa __dict__ diretamente para evitar lazy load em contexto async.
-        # Se messages não estiver carregado (nova conversa), retorna vazio.
+        """Histórico sem lazy load — usa __dict__ para nova conversa."""
         messages = conversation.__dict__.get("messages", []) or []
-
         history = []
         for msg in messages:
             role = "user" if msg.direction == MessageDirection.INBOUND else "assistant"
             history.append({"role": role, "content": msg.content})
-
         return trim_history(history)
+
+    def _augment_message(
+        self,
+        user_text: str,
+        state: ConversationState,
+        order_ctx: OrderContext,
+    ) -> str:
+        """Adiciona contexto do pedido à mensagem quando relevante."""
+        if state == ConversationState.ORDER_DELIVERY and order_ctx.items:
+            return (
+                f"{user_text}\n\n"
+                f"[CONTEXTO INTERNO: Pedido atual: {order_ctx.format_summary()}]"
+            )
+        return user_text
+
+    def _update_order_context(
+        self,
+        ctx: OrderContext,
+        state: ConversationState,
+        ai_response: str,
+        user_message: str,
+    ) -> OrderContext:
+        """Extrai e atualiza contexto do pedido a partir da resposta do Claude."""
+
+        if state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM):
+            # Tenta extrair itens do resumo do Claude
+            parsed_items = parse_items_from_claude(ai_response)
+            if parsed_items:
+                ctx.items = parsed_items
+                ctx.recalculate_total()
+
+            # Total explícito
+            total = extract_order_total(ai_response)
+            if total and total > 0:
+                ctx.total = total
+
+            # Tipo de entrega
+            ctx.delivery_type = parse_delivery_type(user_message)
+
+        elif state == ConversationState.ORDER_DELIVERY:
+            # Tenta extrair bloco e apartamento da mensagem do cliente
+            block, apt = extract_block_and_apartment(user_message)
+            if block:
+                ctx.building_block = block
+            if apt:
+                ctx.apartment = apt
+
+        return ctx
+
+    async def _finalize_order(
+        self, customer: Customer, order_ctx: OrderContext
+    ) -> OrderContext:
+        """Cria o Order real no banco de dados."""
+        try:
+            # Valida delivery se necessário
+            if order_ctx.delivery_type == "delivery" and order_ctx.building_block:
+                validation = validate_delivery(
+                    order_ctx.building_block,
+                    order_ctx.apartment or "",
+                    self._business,
+                )
+                if not validation.is_valid:
+                    logger.warning("Delivery inválido: %s", validation.error_message)
+                    # Não bloqueia o fluxo — Claude já tratou isso
+
+            service = OrderService(self._db)
+            order = await service.create_from_context(customer, order_ctx)
+            order_ctx.order_id = str(order.id)
+
+            # Notifica donos
+            await notify_new_order(
+                order=order,
+                customer_phone=customer.phone,
+                customer_name=customer.name,
+                whatsapp=self._whatsapp,
+                business=self._business,
+            )
+
+            logger.info("Order %s criado e donos notificados.", order.id)
+
+        except Exception:
+            logger.exception("Erro ao criar Order no BD — fluxo continua")
+
+        return order_ctx
 
     async def _save_messages(
         self,
@@ -210,33 +316,28 @@ class ConversationEngine:
         tokens: int,
         whatsapp_msg_id: str,
     ) -> None:
-        """Persiste mensagem do usuário e resposta do bot."""
-        user_msg = Message(
+        self._db.add(Message(
             conversation_id=conversation.id,
             direction=MessageDirection.INBOUND,
             message_type=MessageType.TEXT,
             content=user_text,
             whatsapp_message_id=whatsapp_msg_id,
             is_ai_generated=False,
-        )
-        bot_msg = Message(
+        ))
+        self._db.add(Message(
             conversation_id=conversation.id,
             direction=MessageDirection.OUTBOUND,
             message_type=MessageType.TEXT,
             content=bot_text,
             is_ai_generated=True,
             tokens_used=tokens,
-        )
-        self._db.add(user_msg)
-        self._db.add(bot_msg)
+        ))
         await self._db.flush()
 
     async def _update_conversation_state(
         self, conversation: Conversation, new_state: ConversationState
     ) -> None:
         conversation.state = new_state
-
         if new_state == ConversationState.CLOSED:
             conversation.status = ConversationStatus.CLOSED
-
         await self._db.flush()
