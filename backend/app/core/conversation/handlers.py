@@ -75,7 +75,12 @@ def next_state_from_response(
             return ConversationState.ORDER_DELIVERY
 
         case ConversationState.ORDER_PAYMENT:
-            return ConversationState.CLOSED
+            # Bot enviou o PIX — aguarda o comprovante
+            return ConversationState.PAYMENT_RECEIPT
+
+        case ConversationState.PAYMENT_RECEIPT:
+            # Estado gerenciado pelo engine (imagem recebida) — texto do cliente mantém estado
+            return ConversationState.PAYMENT_RECEIPT
 
         case ConversationState.DELIVERY_INFO:
             if any(k in user_lower for k in ["pedir", "quero", "sim"]):

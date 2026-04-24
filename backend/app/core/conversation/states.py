@@ -32,7 +32,12 @@ TRANSITIONS: dict[ConversationState, list[ConversationState]] = {
         ConversationState.ORDER_DELIVERY,  # Dados inválidos, pedir de novo
     ],
     ConversationState.ORDER_PAYMENT: [
-        ConversationState.CLOSED,
+        ConversationState.PAYMENT_RECEIPT,
+        ConversationState.CLOSED,  # Fallback direto (ex: retirada sem comprovante)
+    ],
+    ConversationState.PAYMENT_RECEIPT: [
+        ConversationState.PAYMENT_RECEIPT,  # Aguardando comprovante
+        ConversationState.CLOSED,           # Comprovante validado
     ],
     ConversationState.DELIVERY_INFO: [
         ConversationState.ORDER_ITEMS,     # Quer fazer pedido

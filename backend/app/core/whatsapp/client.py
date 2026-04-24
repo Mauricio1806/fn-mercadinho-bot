@@ -65,7 +65,47 @@ class WhatsAppClient:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 await client.post(url, json=payload, headers=headers)
         except Exception:
-            pass  # Typing indicator é best-effort
+            pass
+
+    async def send_audio_url(self, to: str, audio_url: str) -> bool:
+        """Envia mensagem de áudio via URL pública (Evolution API)."""
+        url = f"{self._api_url}/message/sendMedia/{self._instance}"
+        payload = {
+            "number": to,
+            "mediatype": "audio",
+            "media": audio_url,
+            "fileName": "alert.mp3",
+        }
+        headers = {"apikey": self._api_key, "Content-Type": "application/json"}
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                return True
+        except Exception:
+            logger.warning("Falhou ao enviar áudio de alerta para %s", to)
+            return False
+
+    async def send_image_url(self, to: str, image_url: str, caption: str = "") -> bool:
+        """Envia imagem via URL pública."""
+        url = f"{self._api_url}/message/sendMedia/{self._instance}"
+        payload = {
+            "number": to,
+            "mediatype": "image",
+            "media": image_url,
+            "caption": caption,
+        }
+        headers = {"apikey": self._api_key, "Content-Type": "application/json"}
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                return True
+        except Exception:
+            logger.warning("Falhou ao enviar imagem para %s", to)
+            return False
 
 
 # Instância compartilhada (pode ser sobrescrita em testes)

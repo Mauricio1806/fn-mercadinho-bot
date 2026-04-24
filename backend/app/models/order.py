@@ -17,13 +17,13 @@ if TYPE_CHECKING:
 class OrderStatus(str, enum.Enum):
     """Status possíveis de um pedido."""
 
-    PENDING = "pending"          # Aguardando confirmação do cliente
-    CONFIRMED = "confirmed"      # Cliente confirmou
-    PREPARING = "preparing"      # Em preparo
-    READY = "ready"              # Pronto para entrega
-    DELIVERING = "delivering"    # Em rota de entrega
-    DELIVERED = "delivered"      # Entregue
-    CANCELLED = "cancelled"      # Cancelado
+    PENDING = "pending"                 # Aguardando comprovante PIX
+    PAYMENT_CONFIRMED = "payment_confirmed"  # Comprovante validado — venda efetivada
+    PREPARING = "preparing"             # Em preparo pelo funcionário
+    READY = "ready"                     # Pronto para entrega
+    DELIVERING = "delivering"           # Em rota de entrega
+    DELIVERED = "delivered"             # Entregue
+    CANCELLED = "cancelled"             # Cancelado
 
 
 class Order(UUIDMixin, TimestampMixin, Base):
@@ -44,6 +44,8 @@ class Order(UUIDMixin, TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     pix_notified: Mapped[bool] = mapped_column(default=False, nullable=False)
     owner_notified: Mapped[bool] = mapped_column(default=False, nullable=False)
+    pix_confirmed: Mapped[bool] = mapped_column(default=False, nullable=False)
+    commission_amount: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
 
     customer: Mapped["Customer"] = relationship(back_populates="orders")
     items: Mapped[list["OrderItem"]] = relationship(

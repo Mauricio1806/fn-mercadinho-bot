@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     # Caminho para o business.yaml
     business_config_path: str = "../config/business.yaml"
 
+    # API key de serviço para integrações externas (n8n, automações)
+    service_api_key: str = "service_key_change_me"
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, v: str) -> str:
@@ -83,6 +86,12 @@ class BusinessConfig:
     def nome(self) -> str:
         return self._raw.get("mercadinho", {}).get("nome", "FN Mercadinho")
 
+    @property
+    def endereco(self) -> str:
+        return self._raw.get("mercadinho", {}).get(
+            "endereco", "Conjunto Chácara do Cabula, 74 Box 09, Salvador - BA"
+        )
+
     # ── Horário ──────────────────────────────────────────────────
     @property
     def horario_abertura(self) -> str:
@@ -102,6 +111,15 @@ class BusinessConfig:
             "msg_fora_horario", "Estamos fechados agora! Voltamos amanhã às 7h 😊"
         )
 
+    # ── Horário domingo ──────────────────────────────────────────
+    @property
+    def horario_abertura_domingo(self) -> str | None:
+        return self._raw.get("horario", {}).get("domingo_abertura")
+
+    @property
+    def horario_fechamento_domingo(self) -> str | None:
+        return self._raw.get("horario", {}).get("domingo_fechamento")
+
     # ── Delivery ─────────────────────────────────────────────────
     @property
     def delivery_tipo(self) -> str:
@@ -113,20 +131,51 @@ class BusinessConfig:
         return [b for b in blocos if b != "TODO"]
 
     @property
-    def delivery_nome_condominio(self) -> str:
-        return self._raw.get("delivery", {}).get("nome_condominio", "TODO")
+    def delivery_taxa_proxima(self) -> float:
+        """Taxa para distância até raio_taxa_proxima metros."""
+        return float(self._raw.get("delivery", {}).get("taxa_proxima", 3.0))
+
+    @property
+    def delivery_taxa_distante(self) -> float:
+        """Taxa para distância acima de raio_taxa_proxima metros."""
+        return float(self._raw.get("delivery", {}).get("taxa_distante", 5.0))
+
+    @property
+    def delivery_raio_taxa_proxima(self) -> int:
+        """Raio em metros que define qual taxa aplicar."""
+        return int(self._raw.get("delivery", {}).get("raio_taxa_proxima", 500))
 
     @property
     def delivery_taxa(self) -> float:
-        return float(self._raw.get("delivery", {}).get("taxa", 0))
+        """Compat: retorna taxa padrão (proxima)."""
+        return self.delivery_taxa_proxima
 
     @property
     def delivery_pedido_minimo(self) -> float:
-        return float(self._raw.get("delivery", {}).get("pedido_minimo", 0))
+        return float(self._raw.get("delivery", {}).get("pedido_minimo", 15.0))
 
     @property
     def delivery_tempo_estimado(self) -> str:
         return self._raw.get("delivery", {}).get("tempo_estimado", "15-30 min")
+
+    @property
+    def delivery_horario_abertura(self) -> str:
+        return self._raw.get("delivery", {}).get("horario_abertura", "08:00")
+
+    @property
+    def delivery_horario_fechamento(self) -> str:
+        return self._raw.get("delivery", {}).get("horario_fechamento", "20:00")
+
+    @property
+    def delivery_dias_semana(self) -> str:
+        return self._raw.get("delivery", {}).get("dias_semana", "Segunda a sexta")
+
+    @property
+    def msg_fora_horario_delivery(self) -> str:
+        return self._raw.get("delivery", {}).get(
+            "msg_fora_horario_delivery",
+            "Delivery disponível de segunda a sexta, das 8h às 20h 😊",
+        )
 
     # ── Pix ──────────────────────────────────────────────────────
     @property
@@ -153,16 +202,20 @@ class BusinessConfig:
     @property
     def catalogo(self) -> list[dict[str, Any]]:
         raw = self._raw.get("catalogo", [])
-        return [c for c in raw if c.get("categoria") != "TODO - Adicionar mais"]
+        return [c for c in raw if c.get("categoria") not in ("TODO - Adicionar mais", None)]
 
     def get_catalog_text(self) -> str:
-        """Retorna catálogo formatado para o system prompt do Claude."""
+        """Retorna catálogo para o system prompt — categorias + preços se disponíveis."""
         lines: list[str] = []
         for cat in self.catalogo:
-            lines.append(f"\n{cat['categoria']}:")
+            descricao = cat.get("descricao", "")
+            header = f"\n{cat['categoria']}:"
+            if descricao:
+                header += f" {descricao}"
+            lines.append(header)
             for p in cat.get("produtos", []):
-                if p.get("nome") != "TODO":
-                    lines.append(f"  - {p['nome']}: R$ {p['preco']:.2f}")
+                if p.get("nome") not in ("TODO", None):
+                    lines.append(f"  - {p['nome']}: R$ {p.get('preco', 0):.2f}")
         return "\n".join(lines)
 
     # ── Personalidade ────────────────────────────────────────────
@@ -218,6 +271,10 @@ class BusinessConfig:
     @property
     def valor_alto(self) -> float:
         return float(self._raw.get("notificacao", {}).get("valor_alto", 100.0))
+
+    @property
+    def comissao_percentual(self) -> float:
+        return float(self._raw.get("notificacao", {}).get("comissao_percentual", 5.0))
 
 
 def load_business_config(path: str | None = None) -> BusinessConfig:

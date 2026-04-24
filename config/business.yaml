@@ -1,87 +1,101 @@
 # ══════════════════════════════════════════════
 # FN Mercadinho — Configuração do Negócio
-# PREENCHA CONFORME CONSEGUIR AS INFORMAÇÕES
-# O sistema funciona com os placeholders abaixo
-# Troque os valores "TODO" pelos reais
 # ══════════════════════════════════════════════
 
 mercadinho:
   nome: "FN Mercadinho"
-  slogan: "TODO"                      # Opcional
-  logo: "TODO"                        # Caminho do arquivo
+  slogan: "O endereço da economia!"
+  logo: "WhatsApp Image 2026-04-19 at 20.43.54.jpeg"
+  endereco: "Conjunto Chácara do Cabula, 74 Box 09, Salvador - BA, 41150030"
+  instagram: "fnmercadinhooficial"
+  telefone: "99135-6145"
 
 cores:
-  primaria: "#2E7D32"                 # Verde (trocar se quiser)
-  secundaria: "#FFA000"               # Amarelo
-  accent: "#D32F2F"                   # Vermelho
+  primaria: "#2E7D32"
+  secundaria: "#FFA000"
+  accent: "#D32F2F"
 
 horario:
-  dias: "Segunda a Domingo"
+  dias: "Segunda a sábado"
   abertura: "07:00"
   fechamento: "21:00"
-  feriados: "TODO"                    # Funciona em feriados?
-  msg_fora_horario: "Estamos fechados agora! Voltamos amanhã às 7h 😊"
+  domingo_abertura: "08:00"
+  domingo_fechamento: "12:30"
+  msg_fora_horario: "Estamos fechados agora! 😊 Segunda a sábado das 7h às 21h, domingo das 8h às 12h30."
 
 delivery:
-  tipo: "condominio"
-  nome_condominio: "TODO"             # PREENCHER: Nome do condomínio
-  blocos: ["TODO"]                    # PREENCHER: ["A", "B", "C", "D"]
-  taxa: 0                             # Grátis? Ou valor em reais
-  pedido_minimo: 0                    # Valor mínimo para delivery
+  tipo: "distancia"
+  blocos: ["A", "B", "C"]
+  taxa_proxima: 3.00                  # até 500 metros
+  taxa_distante: 5.00                 # mais de 500 metros
+  raio_taxa_proxima: 500              # metros
+  pedido_minimo: 15.00
   tempo_estimado: "15-30 min"
+  horario_abertura: "08:00"
+  horario_fechamento: "20:00"
+  dias_semana: "Segunda a sexta"
+  msg_fora_horario_delivery: "Delivery disponível de segunda a sexta, das 8h às 20h 😊"
 
 pix:
-  tipo_chave: "TODO"                  # PREENCHER: cpf | cnpj | email | telefone | aleatoria
-  chave: "TODO"                       # PREENCHER: A chave em si
-  titular: "TODO"                     # PREENCHER: Nome do titular
-  banco: "TODO"                       # PREENCHER: Nome do banco
+  tipo_chave: "cnpj"
+  chave: "60747738000149"
+  titular: "NN Mercadinho"
+  banco: "SumUp"
 
-catalogo:                             # PREENCHER: Todos os produtos
+# Catálogo resumido para o bot (categorias principais).
+# O catálogo completo com todos os produtos está em config/catalog_full.yaml
+# e é carregado no banco de dados via: make seed
+catalogo:
   - categoria: "Bebidas"
-    produtos:
-      - nome: "Coca-Cola 2L"
-        preco: 10.00
-      - nome: "Água 500ml"
-        preco: 3.00
-      - nome: "Suco de Caixinha"
-        preco: 4.50
-  - categoria: "Lanches"
-    produtos:
-      - nome: "Pão francês (un)"
-        preco: 1.00
-      - nome: "Biscoito Recheado"
-        preco: 3.50
-  - categoria: "Higiene"
-    produtos:
-      - nome: "Sabonete"
-        preco: 2.50
-  - categoria: "TODO - Adicionar mais"
-    produtos:
-      - nome: "TODO"
-        preco: 0.00
+    descricao: "Refrigerantes, sucos, água, energéticos, cerveja e outras bebidas"
+  - categoria: "Biscoitos"
+    descricao: "Biscoitos doces, salgados e recheados"
+  - categoria: "Bomboniere"
+    descricao: "Chocolates, balas, chicletes e doces"
+  - categoria: "Cereais e Matinais"
+    descricao: "Farinhas, cereais, granola, aveia e café da manhã"
+  - categoria: "Conservas"
+    descricao: "Conservas, molhos e temperos"
+  - categoria: "Congelados"
+    descricao: "Frangos, carnes congeladas e produtos congelados em geral"
+  - categoria: "Cuidados Pessoais"
+    descricao: "Higiene pessoal, cosméticos e medicamentos básicos"
+  - categoria: "Frios e Laticínios"
+    descricao: "Queijos, frios, presunto, iogurte e laticínios"
+  - categoria: "FLV / Horti"
+    descricao: "Frutas, legumes, verduras e hortaliças frescas"
+  - categoria: "Limpeza"
+    descricao: "Produtos de limpeza doméstica"
+  - categoria: "Açougue"
+    descricao: "Carnes bovinas, suínas e aves"
+  - categoria: "Utilidades Domésticas"
+    descricao: "Utensílios, pilhas, isqueiros e itens para o lar"
+  - categoria: "Geral"
+    descricao: "Outros produtos variados"
 
 personalidade:
-  tom: "amigável e informal"          # Como o bot fala
+  tom: "amigável e informal"
   usa_emojis: true
   emojis: ["👋", "✅", "📦", "💰", "😊"]
   saudacao: "Olá! Bem-vindo ao FN Mercadinho 👋"
   despedida: "Obrigado! Até a próxima 😊"
-  tratamento: "você"                  # você | tu | senhor(a)
-  girias_baianas: true                # "oxe", "visse" etc
+  tratamento: "você"
+  girias_baianas: true
   quando_nao_entende: "Desculpa, não entendi 😅 Pode repetir?"
   quando_sem_estoque: "Poxa, tá em falta 😕 Posso sugerir outra coisa?"
-  quando_fora_area: "Só entregamos no condomínio, mas pode buscar! 😊"
+  quando_fora_area: "Entregamos em até 500m do mercadinho. Pode vir buscar também! 😊"
 
 notificacao:
-  whatsapp_dono_1: "TODO"             # PREENCHER: +5571...
-  whatsapp_dono_2: "TODO"             # PREENCHER: +5571...
+  whatsapp_dono_1: "+5571991356145"
+  whatsapp_dono_2: "+5571993266224"
   alertar_pedido_alto: true
   valor_alto: 100.00
+  comissao_percentual: 5.0            # % de comissão sobre vendas confirmadas
 
 tecnico:
-  anthropic_api_key: "TODO"           # PREENCHER: sk-ant-... (via env var)
-  evolution_api_url: "TODO"           # Será gerado no deploy
-  evolution_api_key: "TODO"           # Será gerado no deploy
-  numero_bot: "TODO"                  # PREENCHER: Número do WhatsApp
-  admin_email: "TODO"                 # PREENCHER: Email do admin
-  admin_senha: "TODO"                 # PREENCHER: Senha inicial (via env var)
+  anthropic_api_key: "TODO"           # via env var ANTHROPIC_API_KEY
+  evolution_api_url: "TODO"           # gerado no deploy
+  evolution_api_key: "TODO"           # gerado no deploy
+  numero_bot: "TODO"                  # número WhatsApp do bot
+  admin_email: "TODO"                 # email do admin
+  admin_senha: "TODO"                 # via env var

@@ -33,8 +33,11 @@ class TestStateTransitions:
     def test_order_items_para_order_confirm(self):
         assert is_valid_transition(ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM)
 
-    def test_order_payment_para_closed(self):
-        assert is_valid_transition(ConversationState.ORDER_PAYMENT, ConversationState.CLOSED)
+    def test_order_payment_para_payment_receipt(self):
+        assert is_valid_transition(ConversationState.ORDER_PAYMENT, ConversationState.PAYMENT_RECEIPT)
+
+    def test_payment_receipt_para_closed(self):
+        assert is_valid_transition(ConversationState.PAYMENT_RECEIPT, ConversationState.CLOSED)
 
     def test_closed_permite_reinicio(self):
         assert is_valid_transition(ConversationState.CLOSED, ConversationState.GREETING)
@@ -102,11 +105,17 @@ class TestNextState:
         )
         assert state == ConversationState.ORDER_PAYMENT
 
-    def test_payment_fecha_conversa(self):
+    def test_payment_aguarda_comprovante(self):
         state = next_state_from_response(
-            ConversationState.ORDER_PAYMENT, "Obrigado! Seu pedido está a caminho!", "ok"
+            ConversationState.ORDER_PAYMENT, "Ótimo! Agora envie o comprovante PIX 📎", "ok"
         )
-        assert state == ConversationState.CLOSED
+        assert state == ConversationState.PAYMENT_RECEIPT
+
+    def test_payment_receipt_mantém_estado(self):
+        state = next_state_from_response(
+            ConversationState.PAYMENT_RECEIPT, "Ainda aguardando o comprovante 😊", "já vou mandar"
+        )
+        assert state == ConversationState.PAYMENT_RECEIPT
 
     def test_closed_reinicia_com_greeting(self):
         state = next_state_from_response(

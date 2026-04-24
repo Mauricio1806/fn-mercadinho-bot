@@ -28,6 +28,7 @@ class InboundMessage(BaseModel):
     message_id: str        # ID da mensagem no WhatsApp
     message_type: WhatsAppMessageType
     timestamp: int         # Unix timestamp
+    image_url: str | None = None   # URL da imagem (se message_type == IMAGE)
 
     @field_validator("phone", mode="before")
     @classmethod

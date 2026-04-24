@@ -30,9 +30,13 @@ class MessageResponse(BaseModel):
 class ConversationResponse(BaseModel):
     id: uuid.UUID
     customer_id: uuid.UUID
+    customer_phone: str | None
+    customer_name: str | None
     status: ConversationStatus
     state: ConversationState
     message_count: int
+    last_message: str | None
+    created_at: str
 
     model_config = {"from_attributes": True}
 
@@ -44,9 +48,11 @@ async def list_conversations(
     db: AsyncSession = Depends(get_db),
     _: AdminUser = Depends(get_current_admin),
 ) -> list[dict]:
+    from app.models.customer import Customer
+
     query = (
         select(Conversation)
-        .options(selectinload(Conversation.messages))
+        .options(selectinload(Conversation.messages), selectinload(Conversation.customer))
         .order_by(Conversation.created_at.desc())
         .limit(limit)
     )
@@ -60,9 +66,13 @@ async def list_conversations(
         {
             "id": c.id,
             "customer_id": c.customer_id,
+            "customer_phone": c.customer.phone if c.customer else None,
+            "customer_name": c.customer.name if c.customer else None,
             "status": c.status,
             "state": c.state,
             "message_count": len(c.messages),
+            "last_message": c.messages[-1].content[:60] if c.messages else None,
+            "created_at": c.created_at.isoformat(),
         }
         for c in convs
     ]

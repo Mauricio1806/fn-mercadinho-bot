@@ -12,21 +12,25 @@ from sqlalchemy.orm import selectinload
 from app.config import BusinessConfig, get_business_config
 from app.core.ai.claude_client import ClaudeClient, get_claude_client
 from app.core.ai.prompt_builder import build_system_prompt
+from app.core.ai.response_validator import validate_response
 from app.core.conversation.handlers import (
     extract_order_total,
     next_state_from_response,
     trim_history,
 )
-from app.core.notifications.notify_owner import notify_new_order
+from app.core.notifications.notify_owner import notify_new_order, notify_sale_confirmed
+from app.core.payments.receipt_validator import validate_pix_receipt
 from app.core.orders.context import OrderContext
 from app.core.orders.delivery_validator import extract_block_and_apartment, validate_delivery
 from app.core.orders.parser import parse_delivery_type, parse_items_from_claude
 from app.core.orders.service import OrderService
 from app.core.whatsapp.client import WhatsAppClient, get_whatsapp_client
+from app.core.ws_manager import ws_manager
 from app.core.whatsapp.types import InboundMessage
 from app.models.conversation import Conversation, ConversationState, ConversationStatus
 from app.models.customer import Customer
 from app.models.message import Message, MessageDirection, MessageType
+from app.models.order import Order, OrderStatus
 
 logger = logging.getLogger(__name__)
 
@@ -66,19 +70,30 @@ class ConversationEngine:
             logger.warning("Rate limit: ignorando mensagem de %s", message.phone)
             return
 
-        # Verifica tipo e horário
-        if not await self._is_allowed(message):
-            return
-
-        # Obtém ou cria cliente
+        # Obtém ou cria cliente e conversa antes de qualquer decisão de tipo
         customer = await self._get_or_create_customer(message)
 
         if customer.is_blocked:
             logger.info("Cliente bloqueado ignorado: %s", message.phone)
             return
 
-        # Obtém ou cria conversa ativa
         conversation = await self._get_or_create_conversation(customer)
+
+        # Imagem ou PDF em estado de pagamento → trata como comprovante PIX
+        if (
+            message.image_url
+            and message.message_type.value in ("image", "document")
+            and conversation.state in (
+                ConversationState.ORDER_PAYMENT,
+                ConversationState.PAYMENT_RECEIPT,
+            )
+        ):
+            await self._process_payment_receipt(message, customer, conversation)
+            return
+
+        # Verifica tipo (bloqueia outras mídias) e horário
+        if not await self._is_allowed(message):
+            return
 
         # Carrega contexto do pedido
         order_ctx = OrderContext.from_json(conversation.context_json)
@@ -98,6 +113,11 @@ class ConversationEngine:
             history=history,
             user_message=augmented_message,
         )
+
+        # ── Checkpoint de qualidade ──────────────────────────────────────────
+        validation = validate_response(ai_response, conversation.state, order_ctx, self._business)
+        ai_response = validation.safe_response
+        # ─────────────────────────────────────────────────────────────────────
 
         # Atualiza contexto do pedido com base na resposta do Claude
         order_ctx = self._update_order_context(
@@ -130,6 +150,15 @@ class ConversationEngine:
         # Atualiza estado e contexto da conversa
         conversation.context_json = order_ctx.to_json()
         await self._update_conversation_state(conversation, next_state)
+
+        # Broadcast WebSocket — painel recebe a mensagem em tempo real
+        await ws_manager.broadcast_conversation_update(
+            conversation_id=str(conversation.id),
+            message_content=ai_response,
+            direction="outbound",
+            is_ai_generated=True,
+            tokens_used=tokens,
+        )
 
         # Envia resposta ao cliente
         await self._whatsapp.send_typing(message.phone, duration_ms=1500)
@@ -333,6 +362,127 @@ class ConversationEngine:
             tokens_used=tokens,
         ))
         await self._db.flush()
+
+    async def _process_payment_receipt(
+        self,
+        message: InboundMessage,
+        customer: Customer,
+        conversation: Conversation,
+    ) -> None:
+        """
+        Processa comprovante PIX enviado pelo cliente.
+        - Valida via Claude Vision
+        - Se válido: confirma venda, notifica donos, broadcast dashboard
+        - Se inválido: pede reenvio
+        """
+        order_ctx = OrderContext.from_json(conversation.context_json)
+        expected_total = order_ctx.total or 0.0
+
+        await self._whatsapp.send_typing(message.phone, duration_ms=3000)
+
+        validation = await validate_pix_receipt(
+            image_url=message.image_url,  # type: ignore[arg-type]
+            expected_amount=expected_total,
+            claude=self._claude,
+            business=self._business,
+        )
+
+        if validation.is_valid:
+            reply = (
+                "✅ *Comprovante confirmado!* Obrigado! 🎉\n\n"
+                "📦 Seu pedido já está sendo separado!\n"
+                "Em breve você receberá a entrega. Qualquer dúvida é só chamar 😊"
+            )
+            await self._whatsapp.send_text(message.phone, reply)
+
+            # Atualiza pedido no banco
+            if order_ctx.order_id:
+                await self._mark_order_payment_confirmed(
+                    order_ctx.order_id,
+                    customer,
+                    conversation,
+                )
+
+            # Fecha conversa
+            await self._update_conversation_state(conversation, ConversationState.CLOSED)
+
+        else:
+            reply = (
+                "😕 Não consegui validar o comprovante.\n\n"
+                f"Detalhe: {validation.reason}\n\n"
+                "Pode reenviar o comprovante? Certifique que mostra:\n"
+                f"• Valor: *R$ {expected_total:.2f}*\n"
+                f"• Chave PIX: *{self._business.pix_chave}*"
+            )
+            await self._whatsapp.send_text(message.phone, reply)
+            await self._update_conversation_state(
+                conversation, ConversationState.PAYMENT_RECEIPT
+            )
+
+        # Salva mensagem do cliente no histórico
+        self._db.add(Message(
+            conversation_id=conversation.id,
+            direction=MessageDirection.INBOUND,
+            message_type=MessageType.IMAGE,
+            content="[Comprovante PIX enviado]",
+            whatsapp_message_id=message.message_id,
+            is_ai_generated=False,
+        ))
+        self._db.add(Message(
+            conversation_id=conversation.id,
+            direction=MessageDirection.OUTBOUND,
+            message_type=MessageType.TEXT,
+            content=reply,
+            is_ai_generated=True,
+            tokens_used=0,
+        ))
+        await self._db.flush()
+
+    async def _mark_order_payment_confirmed(
+        self,
+        order_id: str,
+        customer: Customer,
+        conversation: Conversation,
+    ) -> None:
+        """Marca o pedido como pago e notifica os donos."""
+        from sqlalchemy import select as sa_select
+        import uuid as _uuid
+
+        try:
+            result = await self._db.execute(
+                sa_select(Order).where(Order.id == _uuid.UUID(order_id))
+            )
+            order = result.scalar_one_or_none()
+            if not order:
+                return
+
+            commission = float(order.total_amount) * (self._business.comissao_percentual / 100)
+            order.status = OrderStatus.PAYMENT_CONFIRMED
+            order.pix_confirmed = True
+            order.commission_amount = commission
+            await self._db.flush()
+
+            # Broadcast para o dashboard em tempo real
+            await ws_manager.broadcast_conversation_update(
+                conversation_id=str(conversation.id),
+                message_content=f"[VENDA_CONFIRMADA] Pedido {order_id[:8].upper()} — R$ {order.total_amount:.2f}",
+                direction="outbound",
+                is_ai_generated=False,
+                tokens_used=0,
+            )
+
+            # Notifica os dois donos
+            await notify_sale_confirmed(
+                order=order,
+                customer_phone=customer.phone,
+                customer_name=customer.name,
+                commission_amount=commission,
+                whatsapp=self._whatsapp,
+                business=self._business,
+            )
+
+        except Exception:
+            logger.exception("Erro ao confirmar pagamento do pedido %s", order_id)
 
     async def _update_conversation_state(
         self, conversation: Conversation, new_state: ConversationState

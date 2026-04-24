@@ -89,6 +89,81 @@ class ClaudeClient:
             logger.exception("Erro inesperado no Claude: %s", e)
             return "Opa, tive um probleminha aqui 🙈 Pode repetir?", 0
 
+    async def chat_with_document(
+        self,
+        system_prompt: str,
+        document_data: str,
+        prompt: str,
+        max_tokens: int = 512,
+    ) -> tuple[str, int]:
+        """Analisa um documento PDF com Claude (Document API)."""
+        try:
+            response = await self._client.messages.create(
+                model=MODEL,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "document",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "application/pdf",
+                                    "data": document_data,
+                                },
+                            },
+                            {"type": "text", "text": prompt},
+                        ],
+                    }
+                ],
+            )
+            text = response.content[0].text if response.content else ""
+            tokens = response.usage.input_tokens + response.usage.output_tokens
+            return text, tokens
+        except Exception as e:
+            logger.exception("Erro ao analisar PDF com Claude: %s", e)
+            return "", 0
+
+    async def chat_with_image(
+        self,
+        system_prompt: str,
+        image_data: str,
+        image_media_type: str,
+        prompt: str,
+        max_tokens: int = 512,
+    ) -> tuple[str, int]:
+        """Analisa uma imagem com Claude Vision."""
+        try:
+            response = await self._client.messages.create(
+                model=MODEL,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": image_media_type,
+                                    "data": image_data,
+                                },
+                            },
+                            {"type": "text", "text": prompt},
+                        ],
+                    }
+                ],
+            )
+            text = response.content[0].text if response.content else ""
+            tokens = response.usage.input_tokens + response.usage.output_tokens
+            return text, tokens
+        except Exception as e:
+            logger.exception("Erro ao analisar imagem com Claude: %s", e)
+            return "", 0
+
 
 # Singleton
 _claude: ClaudeClient | None = None

@@ -74,6 +74,8 @@ def create_app() -> FastAPI:
     from app.api.routes.auth import router as auth_router
     from app.api.routes.dashboard import router as dashboard_router
     from app.api.routes.conversations import router as conversations_router
+    from app.api.routes.service import router as service_router
+    from app.api.routes.ws import router as ws_router
 
     app.include_router(webhook_router, prefix="/webhook", tags=["webhook"])
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
@@ -82,6 +84,8 @@ def create_app() -> FastAPI:
     app.include_router(customers_router, prefix="/api/customers", tags=["customers"])
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
     app.include_router(conversations_router, prefix="/api/conversations", tags=["conversations"])
+    app.include_router(service_router, prefix="/api/service", tags=["service"])
+    app.include_router(ws_router, prefix="/ws", tags=["websocket"])
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict[str, str]:

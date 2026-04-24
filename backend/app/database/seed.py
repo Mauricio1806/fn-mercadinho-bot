@@ -1,24 +1,52 @@
-"""Popula o banco de dados com o catálogo do business.yaml."""
+"""Popula o banco de dados com o catálogo de produtos."""
+
+from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 
+import yaml
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_business_config
+from app.config import get_business_config, get_settings
 from app.database.session import AsyncSessionLocal
 from app.models.product import Product, ProductCategory
 
 logger = logging.getLogger(__name__)
 
 
-async def seed_catalog(session: AsyncSession) -> None:
-    """Cria categorias e produtos a partir do business.yaml."""
+def _load_catalog() -> list[dict]:
+    """
+    Carrega catálogo de produtos.
+    Prioridade: config/catalog_full.yaml (gerado por parse_estoque.py)
+    Fallback: seção 'catalogo' do business.yaml (apenas categorias).
+    """
+    settings = get_settings()
+    config_dir = Path(settings.business_config_path).resolve().parent
+
+    catalog_full = config_dir / "catalog_full.yaml"
+    if catalog_full.exists():
+        logger.info("Usando catálogo completo: %s", catalog_full)
+        with catalog_full.open(encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        return data or []
+
+    # Fallback: business.yaml (só para categorias sem produtos reais)
+    logger.warning(
+        "catalog_full.yaml não encontrado — usando business.yaml (sem produtos reais). "
+        "Execute: python backend/parse_estoque.py"
+    )
     config = get_business_config()
-    catalogo = config.catalogo
+    return [c for c in config.catalogo if c.get("produtos")]
+
+
+async def seed_catalog(session: AsyncSession) -> None:
+    """Cria categorias e produtos no banco de dados."""
+    catalogo = _load_catalog()
 
     if not catalogo:
-        logger.warning("Catálogo vazio no business.yaml — seed ignorado.")
+        logger.warning("Catálogo vazio — seed ignorado.")
         return
 
     created_categories = 0
@@ -32,11 +60,11 @@ async def seed_catalog(session: AsyncSession) -> None:
             sort_order=sort_idx,
         )
         session.add(category)
-        await session.flush()  # Garante o ID antes de criar produtos
+        await session.flush()
         created_categories += 1
 
         for prod_idx, prod_data in enumerate(cat_data.get("produtos", [])):
-            if prod_data.get("nome") == "TODO":
+            if prod_data.get("nome") in ("TODO", None, ""):
                 continue
 
             product = Product(

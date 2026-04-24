@@ -105,11 +105,11 @@ class TestUpdateOrderStatus:
         order_id = str(setup_order["order"].id)
         resp = await client.patch(
             f"/api/orders/{order_id}/status",
-            json={"status": "confirmed"},
+            json={"status": "payment_confirmed"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] == "confirmed"
+        assert resp.json()["status"] == "payment_confirmed"
 
     async def test_status_invalido(
         self, client: AsyncClient, setup_order: dict, admin_token: str

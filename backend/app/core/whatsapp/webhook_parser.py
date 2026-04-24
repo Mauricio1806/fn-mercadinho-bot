@@ -54,6 +54,13 @@ def parse_webhook(payload: dict[str, Any]) -> InboundMessage | None:
     message_id = key.get("id", "unknown")
     timestamp = data.get("messageTimestamp", 0)
 
+    # URL de mídia (imagem ou PDF — pode ser comprovante PIX)
+    image_url: str | None = None
+    if msg_type == WhatsAppMessageType.IMAGE:
+        image_url = _extract_image_url(msg, data)
+    elif msg_type == WhatsAppMessageType.DOCUMENT:
+        image_url = _extract_document_url(msg, data)
+
     return InboundMessage(
         phone=remote_jid,
         name=push_name,
@@ -61,6 +68,7 @@ def parse_webhook(payload: dict[str, Any]) -> InboundMessage | None:
         message_id=message_id,
         message_type=msg_type,
         timestamp=int(timestamp),
+        image_url=image_url,
     )
 
 
@@ -98,3 +106,21 @@ def _extract_message_content(msg: dict[str, Any]) -> tuple[WhatsAppMessageType, 
         return WhatsAppMessageType.REACTION, ""
 
     return WhatsAppMessageType.UNKNOWN, ""
+
+
+def _extract_image_url(msg: dict[str, Any], data: dict[str, Any]) -> str | None:
+    """Extrai URL de imagem do payload da Evolution API."""
+    img_msg = msg.get("imageMessage", {})
+    url = img_msg.get("mediaUrl") or img_msg.get("url")
+    if url:
+        return str(url)
+    return data.get("mediaUrl") or data.get("media", {}).get("url")
+
+
+def _extract_document_url(msg: dict[str, Any], data: dict[str, Any]) -> str | None:
+    """Extrai URL de documento (PDF) do payload da Evolution API."""
+    doc_msg = msg.get("documentMessage", {})
+    url = doc_msg.get("mediaUrl") or doc_msg.get("url")
+    if url:
+        return str(url)
+    return data.get("mediaUrl") or data.get("media", {}).get("url")

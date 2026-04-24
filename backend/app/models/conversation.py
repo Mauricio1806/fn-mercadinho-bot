@@ -32,6 +32,7 @@ class ConversationState(str, enum.Enum):
     ORDER_CONFIRM = "order_confirm"
     ORDER_DELIVERY = "order_delivery"
     ORDER_PAYMENT = "order_payment"
+    PAYMENT_RECEIPT = "payment_receipt"  # Aguardando comprovante PIX do cliente
     DELIVERY_INFO = "delivery_info"
     HOURS_INFO = "hours_info"
     FREE_CHAT = "free_chat"

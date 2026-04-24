@@ -1,0 +1,95 @@
+{
+  "name": "FN Mercadinho — Sync Estoque",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 30 }] }
+      },
+      "name": "A cada 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "id": "1"
+    },
+    {
+      "parameters": {
+        "documentId": "COLE_O_ID_DA_PLANILHA_AQUI",
+        "sheetName": "Estoque",
+        "options": {}
+      },
+      "name": "Ler Planilha Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [460, 300],
+      "id": "2",
+      "notes": "Colunas esperadas: product_id | stock_quantity\nEx: a1b2c3d4-... | 15"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtra linhas válidas e monta array\nreturn items\n  .filter(i => i.json.product_id && i.json.stock_quantity !== undefined)\n  .map(i => ({\n    json: {\n      product_id: String(i.json.product_id).trim(),\n      stock_quantity: parseInt(i.json.stock_quantity)\n    }\n  }));"
+      },
+      "name": "Formata dados",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "id": "3"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://SEU_DOMINIO.com/api/service/products/stock/bulk",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Service-Key", "value": "={{$env.FN_SERVICE_API_KEY}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "items",
+              "value": "={{ $items().map(i => ({ product_id: i.json.product_id, stock_quantity: i.json.stock_quantity })) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Atualiza Estoque API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300],
+      "id": "4",
+      "notes": "Precisa da variável de ambiente FN_SERVICE_API_KEY no n8n"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = items[0].json;\nconsole.log(`Estoque atualizado: ${result.updated} produtos. Não encontrados: ${result.not_found?.length || 0}`);\nreturn items;"
+      },
+      "name": "Log resultado",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 300],
+      "id": "5"
+    }
+  ],
+  "connections": {
+    "A cada 30 min": { "main": [[{ "node": "Ler Planilha Google Sheets", "type": "main", "index": 0 }]] },
+    "Ler Planilha Google Sheets": { "main": [[{ "node": "Formata dados", "type": "main", "index": 0 }]] },
+    "Formata dados": { "main": [[{ "node": "Atualiza Estoque API", "type": "main", "index": 0 }]] },
+    "Atualiza Estoque API": { "main": [[{ "node": "Log resultado", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "notes": [
+      "CONFIGURAÇÃO NECESSÁRIA:",
+      "1. Autenticar conta Google no n8n (Credentials > Google Sheets)",
+      "2. Substituir COLE_O_ID_DA_PLANILHA_AQUI pelo ID real da planilha",
+      "3. Substituir SEU_DOMINIO.com pelo domínio real",
+      "4. Criar variável de ambiente no n8n: FN_SERVICE_API_KEY = valor do SERVICE_API_KEY do .env",
+      "",
+      "FORMATO DA PLANILHA:",
+      "Aba: Estoque",
+      "Colunas: product_id (UUID) | stock_quantity (número inteiro)",
+      "",
+      "Para obter os UUIDs dos produtos:",
+      "GET https://SEU_DOMINIO.com/api/service/products (com X-Service-Key)"
+    ]
+  }
+}
