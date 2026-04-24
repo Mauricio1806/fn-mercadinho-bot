@@ -17,7 +17,7 @@ const STATUSES: OrderStatus[] = [
 ];
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  pending: "confirmed",
+  pending: "payment_confirmed",
   payment_confirmed: "preparing",
   preparing: "ready",
   ready: "delivering",
