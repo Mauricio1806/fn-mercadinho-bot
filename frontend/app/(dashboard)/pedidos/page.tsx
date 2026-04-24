@@ -13,12 +13,12 @@ import type { Order, OrderStatus } from "@/lib/types";
 import { ORDER_STATUS_LABEL } from "@/lib/types";
 
 const STATUSES: OrderStatus[] = [
-  "pending", "confirmed", "preparing", "ready", "delivering", "delivered", "cancelled",
+  "pending", "payment_confirmed", "preparing", "ready", "delivering", "delivered", "cancelled",
 ];
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   pending: "confirmed",
-  confirmed: "preparing",
+  payment_confirmed: "preparing",
   preparing: "ready",
   ready: "delivering",
   delivering: "delivered",
