@@ -20,6 +20,7 @@ from app.core.conversation.handlers import (
 )
 from app.core.notifications.notify_owner import notify_new_order, notify_sale_confirmed
 from app.core.payments.receipt_validator import validate_pix_receipt
+from app.services.pix_fraud_guard import FRAUD_RESPONSES, detect_pressure
 from app.core.orders.context import OrderContext
 from app.core.orders.delivery_validator import extract_block_and_apartment, validate_delivery
 from app.core.orders.parser import parse_delivery_type, parse_items_from_claude
@@ -93,6 +94,17 @@ class ConversationEngine:
 
         # Verifica tipo (bloqueia outras mídias) e horário
         if not await self._is_allowed(message):
+            return
+
+        # Detecta pressão para liberar pedido sem comprovante
+        if (
+            conversation.state == ConversationState.PAYMENT_RECEIPT
+            and message.text
+            and detect_pressure(message.text)
+        ):
+            await self._whatsapp.send_text(
+                message.phone, FRAUD_RESPONSES["PRESSAO_DETECTADA"]
+            )
             return
 
         # Carrega contexto do pedido
@@ -385,6 +397,9 @@ class ConversationEngine:
             expected_amount=expected_total,
             claude=self._claude,
             business=self._business,
+            db=self._db,
+            order_id=order_ctx.order_id,
+            customer_phone=customer.phone,
         )
 
         if validation.is_valid:
@@ -407,13 +422,17 @@ class ConversationEngine:
             await self._update_conversation_state(conversation, ConversationState.CLOSED)
 
         else:
-            reply = (
-                "😕 Não consegui validar o comprovante.\n\n"
-                f"Detalhe: {validation.reason}\n\n"
-                "Pode reenviar o comprovante? Certifique que mostra:\n"
-                f"• Valor: *R$ {expected_total:.2f}*\n"
-                f"• Chave PIX: *{self._business.pix_chave}*"
-            )
+            # fraud_result tem mensagem específica; sem ele usa formato padrão
+            if validation.fraud_result and validation.fraud_result.flags:
+                reply = validation.reason
+            else:
+                reply = (
+                    "😕 Não consegui validar o comprovante.\n\n"
+                    f"Detalhe: {validation.reason}\n\n"
+                    "Pode reenviar o comprovante? Certifique que mostra:\n"
+                    f"• Valor: *R$ {expected_total:.2f}*\n"
+                    f"• Chave PIX: *{self._business.pix_chave}*"
+                )
             await self._whatsapp.send_text(message.phone, reply)
             await self._update_conversation_state(
                 conversation, ConversationState.PAYMENT_RECEIPT

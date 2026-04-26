@@ -110,11 +110,18 @@ class TestReceiptEngineIntegration:
         claude.chat = AsyncMock(return_value=("Envie o comprovante PIX 📎", 100))
         claude.chat_with_image = AsyncMock(return_value=(
             json.dumps({
-                "is_comprovante_pix": True,
-                "valor_detectado": 50.0,
-                "valor_correto": True,
-                "chave_destino_encontrada": True,
-                "motivo": "Comprovante válido",
+                "status": "concluido",
+                "amount": 50.0,
+                "recipient_name": "fn mercadinho",
+                "recipient_key": "test@pix.com",
+                "payer_name": "Cliente Teste",
+                "txid": None,
+                "date": None,
+                "time": None,
+                "bank": "Nubank",
+                "is_screenshot": False,
+                "confidence": "high",
+                "raw_text": "Pix concluido de R$ 50,00 para fn mercadinho",
             }),
             200,
         ))

@@ -4,6 +4,7 @@ from app.models.order import Order, OrderItem, OrderStatus
 from app.models.conversation import Conversation, ConversationStatus
 from app.models.message import Message, MessageDirection
 from app.models.admin_user import AdminUser
+from app.models.pix_receipt_log import PixReceiptLog
 
 __all__ = [
     "Customer",
@@ -17,4 +18,5 @@ __all__ = [
     "Message",
     "MessageDirection",
     "AdminUser",
+    "PixReceiptLog",
 ]

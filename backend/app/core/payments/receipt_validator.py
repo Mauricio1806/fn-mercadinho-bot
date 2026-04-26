@@ -3,6 +3,9 @@
 Suporta:
 - Imagem (PNG, JPG, WEBP) — enviada como imageMessage no WhatsApp
 - PDF — enviado como documentMessage no WhatsApp
+
+Quando db, order_id e customer_phone são fornecidos, executa verificação
+anti-fraude completa via pix_fraud_guard (7 vetores de fraude).
 """
 
 from __future__ import annotations
@@ -11,12 +14,21 @@ import base64
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BusinessConfig, get_business_config
 from app.core.ai.claude_client import ClaudeClient, get_claude_client
+from app.models.pix_receipt_log import PixReceiptLog  # noqa: F401 — registra tabela no Base.metadata
+from app.services.pix_fraud_guard import (
+    FRAUD_RESPONSES,
+    RECEIPT_EXTRACTION_PROMPT,
+    FraudCheckResult,
+    check_fraud,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +42,7 @@ class ReceiptValidation:
     amount_detected: float | None
     pix_key_match: bool
     reason: str
+    fraud_result: Optional[FraudCheckResult] = field(default=None)
 
 
 async def _download(url: str) -> tuple[str, str] | None:
@@ -75,7 +88,6 @@ Seja rigoroso — validações incorretas causam prejuízo ao mercadinho."""
 def _parse_claude_response(response_text: str) -> dict:
     """Extrai JSON da resposta do Claude, tolerando markdown."""
     clean = response_text.strip()
-    # Remove blocos de markdown se existirem
     clean = re.sub(r"^```(?:json)?", "", clean).rstrip("`").strip()
     return json.loads(clean)
 
@@ -85,10 +97,15 @@ async def validate_pix_receipt(
     expected_amount: float,
     claude: ClaudeClient | None = None,
     business: BusinessConfig | None = None,
+    db: AsyncSession | None = None,
+    order_id: str | None = None,
+    customer_phone: str | None = None,
 ) -> ReceiptValidation:
     """
     Valida comprovante PIX enviado pelo cliente via WhatsApp.
-    Suporta imagem (JPG/PNG) e PDF.
+
+    Passa db + order_id + customer_phone para ativar anti-fraude completo.
+    Sem esses parâmetros usa o caminho legado (compatível com testes antigos).
     """
     if claude is None:
         claude = get_claude_client()
@@ -105,7 +122,8 @@ async def validate_pix_receipt(
         )
 
     file_data, content_type = downloaded
-    prompt = _build_analysis_prompt(expected_amount, business)
+    use_fraud_check = db is not None and order_id is not None and customer_phone is not None
+    prompt = RECEIPT_EXTRACTION_PROMPT if use_fraud_check else _build_analysis_prompt(expected_amount, business)
     system = "Você analisa comprovantes PIX. Responda apenas com JSON válido."
 
     try:
@@ -116,7 +134,7 @@ async def validate_pix_receipt(
                 image_media_type=content_type,
                 prompt=prompt,
             )
-        elif content_type == _PDF_TYPE or content_type == "application/octet-stream":
+        elif content_type in (_PDF_TYPE, "application/octet-stream"):
             response_text, _ = await claude.chat_with_document(
                 system_prompt=system,
                 document_data=file_data,
@@ -133,10 +151,19 @@ async def validate_pix_receipt(
 
         data = _parse_claude_response(response_text)
 
-        is_valid = (
-            data.get("is_comprovante_pix", False)
-            and data.get("valor_correto", False)
-        )
+        if use_fraud_check:
+            return await _validate_with_fraud_check(
+                data=data,
+                file_data=file_data,
+                expected_amount=expected_amount,
+                order_id=order_id,  # type: ignore[arg-type]
+                customer_phone=customer_phone,  # type: ignore[arg-type]
+                db=db,  # type: ignore[arg-type]
+                business=business,
+            )
+
+        # Caminho legado sem fraud check
+        is_valid = data.get("is_comprovante_pix", False) and data.get("valor_correto", False)
         return ReceiptValidation(
             is_valid=is_valid,
             amount_detected=data.get("valor_detectado"),
@@ -160,3 +187,61 @@ async def validate_pix_receipt(
             pix_key_match=False,
             reason="Erro interno. Tente enviar o comprovante novamente.",
         )
+
+
+async def _validate_with_fraud_check(
+    data: dict,
+    file_data: str,
+    expected_amount: float,
+    order_id: str,
+    customer_phone: str,
+    db: AsyncSession,
+    business: BusinessConfig,
+) -> ReceiptValidation:
+    """Executa a verificação anti-fraude completa com os 7 checks."""
+    try:
+        image_bytes: Optional[bytes] = base64.b64decode(file_data)
+    except Exception:
+        image_bytes = None
+
+    valid_pix_keys = [business.pix_chave] if business.pix_configured else []
+    valid_recipient_names = list({business.pix_titular.lower(), "fn mercadinho"})
+
+    fraud_result = await check_fraud(
+        db=db,
+        claude_extracted_data=data,
+        order_amount=expected_amount,
+        order_id=order_id,
+        customer_phone=customer_phone,
+        image_bytes=image_bytes,
+        valid_pix_keys=valid_pix_keys,
+        valid_recipient_names=valid_recipient_names,
+    )
+
+    amount = data.get("amount")
+    recipient_key = (data.get("recipient_key") or "").strip()
+    pix_key_match = recipient_key in valid_pix_keys if valid_pix_keys else True
+
+    if fraud_result.passed:
+        return ReceiptValidation(
+            is_valid=True,
+            amount_detected=amount,
+            pix_key_match=pix_key_match,
+            reason="Comprovante válido.",
+            fraud_result=fraud_result,
+        )
+
+    first_flag_code = fraud_result.flags[0].split(":")[0] if fraud_result.flags else ""
+    template = FRAUD_RESPONSES.get(first_flag_code, fraud_result.flags[0] if fraud_result.flags else "Comprovante inválido.")
+    try:
+        reason = template.format(expected=expected_amount, pix_key=business.pix_chave)
+    except (KeyError, IndexError):
+        reason = template
+
+    return ReceiptValidation(
+        is_valid=False,
+        amount_detected=amount,
+        pix_key_match=pix_key_match,
+        reason=reason,
+        fraud_result=fraud_result,
+    )
