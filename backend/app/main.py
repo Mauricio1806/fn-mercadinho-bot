@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
     # CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.origins_list,
+        allow_origins=["https://fn-mercadinho-boss.lovable.app","https://fn-mercadinho-boss.lovable.app/","http://localhost:5173","http://localhost:3000"],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
