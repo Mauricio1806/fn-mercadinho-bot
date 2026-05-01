@@ -23,7 +23,7 @@ def _load_catalog() -> list[dict]:
     Fallback: seção 'catalogo' do business.yaml (apenas categorias).
     """
     settings = get_settings()
-    config_dir = Path(settings.business_config_path).resolve().parent
+    config_dir = Path(__file__).parent
 
     catalog_full = config_dir / "catalog_full.yaml"
     if catalog_full.exists():
