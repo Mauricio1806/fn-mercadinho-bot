@@ -1,35 +1,32 @@
-"""Sessão assíncrona do banco de dados."""
+import os
 
-from collections.abc import AsyncGenerator
+# Fix Railway DATABASE_URL format (postgres:// → postgresql+asyncpg://)
+_db_url = os.getenv("DATABASE_URL", "")
+if _db_url.startswith("postgres://"):
+    os.environ["DATABASE_URL"] = _db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+elif _db_url.startswith("postgresql://") and "+asyncpg" not in _db_url:
+    os.environ["DATABASE_URL"] = _db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from app.config import settings
 
-from app.config import get_settings
-
-settings = get_settings()
-
-# SQLite (usado em testes) não suporta pool_size/max_overflow
-_is_sqlite = settings.database_url.startswith("sqlite")
-
-_engine_kwargs: dict = {
-    "echo": settings.env == "development",
-    "pool_pre_ping": not _is_sqlite,
+_engine_kwargs = {
+    "echo": False,
+    "pool_pre_ping": True,
+    "pool_size": 5,
+    "max_overflow": 10,
 }
-if not _is_sqlite:
-    _engine_kwargs["pool_size"] = 10
-    _engine_kwargs["max_overflow"] = 20
 
-engine = create_async_engine(settings.database_url, **_engine_kwargs)
+engine = create_async_engine(os.environ.get("DATABASE_URL", settings.database_url), **_engine_kwargs)
 
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
+AsyncSessionLocal = sessionmaker(
+    engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
 
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency do FastAPI: fornece uma sessão de banco por request."""
+async def get_db():
     async with AsyncSessionLocal() as session:
         try:
             yield session
