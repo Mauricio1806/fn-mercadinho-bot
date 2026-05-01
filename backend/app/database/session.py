@@ -1,20 +1,22 @@
 import os
 
-_db_url = os.getenv("DATABASE_URL", "")
-if _db_url.startswith("postgres://"):
-    _db_url = _db_url.replace("postgres://", "postgresql+asyncpg://", 1)
-elif _db_url.startswith("postgresql://") and "+asyncpg" not in _db_url:
-    _db_url = _db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+# Corrige URL do Railway ANTES de qualquer import do SQLAlchemy
+_url = os.environ.get("DATABASE_URL", "")
+if _url.startswith("postgres://"):
+    _url = _url.replace("postgres://", "postgresql+asyncpg://", 1)
+    os.environ["DATABASE_URL"] = _url
+elif _url.startswith("postgresql://") and "+asyncpg" not in _url:
+    _url = _url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    os.environ["DATABASE_URL"] = _url
 
-if not _db_url:
-    from app.config import Settings
-    _db_url = Settings().database_url
+if not _url:
+    _url = "postgresql+asyncpg://fn_user:changeme@localhost:5432/fn_mercadinho"
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 engine = create_async_engine(
-    _db_url,
+    _url,
     echo=False,
     pool_pre_ping=True,
     pool_size=5,
