@@ -42,12 +42,13 @@ def upgrade():
         sa.Column('id', UUID(as_uuid=True), nullable=False, server_default=sa.text('uuid_generate_v4()')),
         sa.Column('name', sa.String(200), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('price', sa.Float(), nullable=False),
+        sa.Column('price', sa.Numeric(10, 2), nullable=False),
         sa.Column('category_id', UUID(as_uuid=True), nullable=False),
         sa.Column('stock_quantity', sa.Integer(), nullable=True),
         sa.Column('is_available', sa.Boolean(), nullable=False, server_default=sa.text('true')),
-        sa.Column('in_stock', sa.Boolean(), nullable=False, server_default=sa.text('true')),
+        sa.Column('sort_order', sa.Integer(), nullable=False, server_default=sa.text('0')),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(['category_id'], ['product_categories.id']),
         sa.PrimaryKeyConstraint('id')
     )
