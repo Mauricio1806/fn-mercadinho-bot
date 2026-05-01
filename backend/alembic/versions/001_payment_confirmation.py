@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "001_payment_confirmation"
-down_revision = None
+down_revision = '000_initial_schema'
 branch_labels = None
 depends_on = None
 
