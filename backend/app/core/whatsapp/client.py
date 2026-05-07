@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-BRIDGE_URL = "http://172.18.0.1:3001/send"
+BRIDGE_URL = "http://35.175.231.218:3001/send"
 
 
 async def send_text_message(phone: str, text: str) -> bool:
