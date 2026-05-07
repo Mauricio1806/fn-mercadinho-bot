@@ -1,126 +1,56 @@
-"""Parser do payload de webhook da Evolution API."""
-
 from __future__ import annotations
-
 import logging
-from typing import Any
-
+from typing import Optional
 from app.core.whatsapp.types import InboundMessage, WhatsAppMessageType
 
 logger = logging.getLogger(__name__)
 
-# Eventos que contêm mensagens de usuário
-MESSAGE_EVENTS = {"messages.upsert", "message.received"}
 
+def parse_whatsapp_message(data: dict) -> Optional[InboundMessage]:
+    try:
+        if data.get("event") != "messages.upsert":
+            return None
+        msg_data = data.get("data", {})
+        if msg_data.get("key", {}).get("fromMe", False):
+            return None
 
-def parse_webhook(payload: dict[str, Any]) -> InboundMessage | None:
-    """
-    Converte o payload bruto da Evolution API em InboundMessage.
-    Retorna None para eventos que não são mensagens de usuário
-    (status updates, reactions de sistema, mensagens do próprio bot, etc.).
-    """
-    event = payload.get("event", "")
+        parsed = msg_data.get("_parsed", {})
+        phone = parsed.get("phone", "")
+        text = parsed.get("text", "").strip()
+        has_image = parsed.get("hasImage", False)
+        push_name = msg_data.get("pushName", "")
+        msg_id = msg_data.get("key", {}).get("id", "")
+        timestamp = int(msg_data.get("messageTimestamp", 0))
 
-    if event not in MESSAGE_EVENTS:
-        logger.debug("Evento ignorado: %s", event)
+        if not phone:
+            return None
+
+        if has_image:
+            msg_type = WhatsAppMessageType.IMAGE
+        elif text:
+            msg_type = WhatsAppMessageType.TEXT
+        else:
+            return None
+
+        if not text and not has_image:
+            return None
+
+        # Montar data URI se vier base64 da mídia
+        image_url = None
+        media_b64 = parsed.get("mediaBase64")
+        media_mime = parsed.get("mediaMimetype", "image/jpeg")
+        if media_b64 and has_image:
+            image_url = f"data:{media_mime};base64,{media_b64}"
+
+        return InboundMessage(
+            phone=phone,
+            name=push_name or None,
+            text=text,
+            message_id=msg_id,
+            message_type=msg_type,
+            timestamp=timestamp,
+            image_url=image_url,
+        )
+    except Exception as e:
+        logger.error(f"Erro ao parsear webhook: {e}", exc_info=True)
         return None
-
-    data = payload.get("data", {})
-
-    # Evolution API v2 structure
-    key = data.get("key", {})
-    msg = data.get("message", {})
-
-    # Ignorar mensagens enviadas pelo próprio bot
-    if key.get("fromMe", False):
-        return None
-
-    # Extrair remetente
-    remote_jid = key.get("remoteJid", "")
-    if not remote_jid or "g.us" in remote_jid:
-        # Ignorar grupos
-        return None
-
-    # Extrair nome do contato
-    push_name = data.get("pushName") or data.get("verifiedBizName")
-
-    # Detectar tipo e conteúdo da mensagem
-    msg_type, text = _extract_message_content(msg)
-
-    if not text and msg_type == WhatsAppMessageType.TEXT:
-        logger.debug("Mensagem sem conteúdo de texto ignorada")
-        return None
-
-    message_id = key.get("id", "unknown")
-    timestamp = data.get("messageTimestamp", 0)
-
-    # URL de mídia (imagem ou PDF — pode ser comprovante PIX)
-    image_url: str | None = None
-    if msg_type == WhatsAppMessageType.IMAGE:
-        image_url = _extract_image_url(msg, data)
-    elif msg_type == WhatsAppMessageType.DOCUMENT:
-        image_url = _extract_document_url(msg, data)
-
-    return InboundMessage(
-        phone=remote_jid,
-        name=push_name,
-        text=text,
-        message_id=message_id,
-        message_type=msg_type,
-        timestamp=int(timestamp),
-        image_url=image_url,
-    )
-
-
-def _extract_message_content(msg: dict[str, Any]) -> tuple[WhatsAppMessageType, str]:
-    """Extrai tipo e texto de uma mensagem da Evolution API."""
-
-    # Texto simples
-    if "conversation" in msg:
-        return WhatsAppMessageType.TEXT, str(msg["conversation"]).strip()
-
-    # Texto estendido (com preview de link, etc)
-    if "extendedTextMessage" in msg:
-        text = msg["extendedTextMessage"].get("text", "")
-        return WhatsAppMessageType.TEXT, str(text).strip()
-
-    # Imagem com legenda
-    if "imageMessage" in msg:
-        caption = msg["imageMessage"].get("caption", "")
-        return WhatsAppMessageType.IMAGE, str(caption).strip()
-
-    # Áudio
-    if "audioMessage" in msg:
-        return WhatsAppMessageType.AUDIO, ""
-
-    # Documento
-    if "documentMessage" in msg:
-        return WhatsAppMessageType.DOCUMENT, ""
-
-    # Sticker
-    if "stickerMessage" in msg:
-        return WhatsAppMessageType.STICKER, ""
-
-    # Reaction
-    if "reactionMessage" in msg:
-        return WhatsAppMessageType.REACTION, ""
-
-    return WhatsAppMessageType.UNKNOWN, ""
-
-
-def _extract_image_url(msg: dict[str, Any], data: dict[str, Any]) -> str | None:
-    """Extrai URL de imagem do payload da Evolution API."""
-    img_msg = msg.get("imageMessage", {})
-    url = img_msg.get("mediaUrl") or img_msg.get("url")
-    if url:
-        return str(url)
-    return data.get("mediaUrl") or data.get("media", {}).get("url")
-
-
-def _extract_document_url(msg: dict[str, Any], data: dict[str, Any]) -> str | None:
-    """Extrai URL de documento (PDF) do payload da Evolution API."""
-    doc_msg = msg.get("documentMessage", {})
-    url = doc_msg.get("mediaUrl") or doc_msg.get("url")
-    if url:
-        return str(url)
-    return data.get("mediaUrl") or data.get("media", {}).get("url")

@@ -46,8 +46,13 @@ class ReceiptValidation:
 
 
 async def _download(url: str) -> tuple[str, str] | None:
-    """Baixa arquivo da URL e retorna (base64_data, content_type)."""
+    """Baixa arquivo da URL ou decodifica data URI. Retorna (base64_data, content_type)."""
     try:
+        # Suporte a data URI: data:mimetype;base64,DADOS
+        if url.startswith("data:"):
+            header, data = url.split(",", 1)
+            content_type = header.split(":")[1].split(";")[0]
+            return data, content_type
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.get(url)
             resp.raise_for_status()
@@ -55,7 +60,7 @@ async def _download(url: str) -> tuple[str, str] | None:
             data = base64.standard_b64encode(resp.content).decode("utf-8")
             return data, content_type
     except Exception as e:
-        logger.error("Erro ao baixar comprovante de %s: %s", url, e)
+        logger.error("Erro ao baixar comprovante de %s: %s", url[:80], e)
         return None
 
 

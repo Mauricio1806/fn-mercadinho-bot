@@ -25,7 +25,7 @@ horario:
 
 delivery:
   tipo: "distancia"
-  blocos: ["A", "B", "C"]
+  blocos: []
   taxa_proxima: 3.00                  # até 500 metros
   taxa_distante: 5.00                 # mais de 500 metros
   raio_taxa_proxima: 500              # metros
@@ -39,7 +39,7 @@ delivery:
 pix:
   tipo_chave: "cnpj"
   chave: "60747738000149"
-  titular: "NN Mercadinho"
+  titular: "FN Mercadinho"
   banco: "SumUp"
 
 # Catálogo resumido para o bot (categorias principais).

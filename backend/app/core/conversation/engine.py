@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.config import BusinessConfig, get_business_config
 from app.core.ai.claude_client import ClaudeClient, get_claude_client
 from app.core.ai.prompt_builder import build_system_prompt
+from sqlalchemy import text
 from app.core.ai.response_validator import validate_response
 from app.core.conversation.handlers import (
     extract_order_total,
@@ -63,11 +64,14 @@ class ConversationEngine:
         self._business = business or get_business_config()
 
     async def handle(self, message: InboundMessage) -> None:
+        print("ENGINE HANDLE:", message.phone, message.text, flush=True)
         """Ponto de entrada principal — processa uma mensagem recebida."""
 
         # Rate limiting por número
         from app.api.middleware.rate_limit import is_rate_limited
-        if await is_rate_limited(message.phone):
+        rl = await is_rate_limited(message.phone)
+        print("RATE_LIMITED:", rl, flush=True)
+        if rl:
             logger.warning("Rate limit: ignorando mensagem de %s", message.phone)
             return
 
@@ -81,6 +85,7 @@ class ConversationEngine:
         conversation = await self._get_or_create_conversation(customer)
 
         # Imagem ou PDF em estado de pagamento → trata como comprovante PIX
+        print(f"MEDIA CHECK: image_url={bool(message.image_url)} type={message.message_type.value} state={conversation.state.value}", flush=True)
         if (
             message.image_url
             and message.message_type.value in ("image", "document")
@@ -114,12 +119,14 @@ class ConversationEngine:
         history = self._build_history(conversation)
 
         # System prompt baseado no estado atual
-        system_prompt = build_system_prompt(conversation.state, self._business)
+        catalog_text = await self._get_catalog_text()
+        system_prompt = build_system_prompt(conversation.state, self._business, catalog_text=catalog_text)
 
         # Monta mensagem aumentada com contexto quando em estados de pedido
         augmented_message = self._augment_message(message.text, conversation.state, order_ctx)
 
         # Chama Claude
+        print("CALLING CLAUDE...", flush=True)
         ai_response, tokens = await self._claude.chat(
             system_prompt=system_prompt,
             history=history,
@@ -174,6 +181,7 @@ class ConversationEngine:
 
         # Envia resposta ao cliente
         await self._whatsapp.send_typing(message.phone, duration_ms=1500)
+        print("SENDING:", message.phone, ai_response[:50], flush=True)
         await self._whatsapp.send_text(message.phone, ai_response)
 
         logger.info(
@@ -510,3 +518,24 @@ class ConversationEngine:
         if new_state == ConversationState.CLOSED:
             conversation.status = ConversationStatus.CLOSED
         await self._db.flush()
+
+    async def _get_catalog_text(self) -> str:
+        try:
+            from app.database.session import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    text("SELECT p.name, p.price, pc.name as category FROM products p JOIN product_categories pc ON p.category_id = pc.id WHERE p.is_available = true ORDER BY pc.name, p.name LIMIT 500")
+                )
+                rows = result.fetchall()
+            lines = []
+            current_cat = None
+            for row in rows:
+                if row.category != current_cat:
+                    current_cat = row.category
+                    lines.append(f"\n{current_cat}:")
+                lines.append(f"  - {row.name}: R$ {float(row.price):.2f}")
+            return "\n".join(lines)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Erro ao buscar catálogo: {e}")
+            return ""

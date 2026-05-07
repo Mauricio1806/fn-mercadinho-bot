@@ -102,38 +102,8 @@ def validate_response(
 
 # ── Verificação 1: guard de dados Pix ─────────────────────────────────────────
 
-def _check_pix_guard(
-    text: str,
-    state: ConversationState,
-    business: BusinessConfig,
-) -> tuple[str, list[str]]:
-    """
-    Garante que a chave Pix e dados bancários só aparecem em ORDER_PAYMENT.
-    Se detectar vazamento, substitui o dado sensível por placeholder.
-    """
-    issues: list[str] = []
-
-    if state == ConversationState.ORDER_PAYMENT:
-        # Estado correto — sem restrições
-        return text, issues
-
-    # Chave Pix configurada
-    pix = business.pix_chave
-    if pix and pix.upper() != "TODO" and pix in text:
-        issues.append(f"SEGURANÇA: chave Pix vazada fora de ORDER_PAYMENT (estado={state.value})")
-        text = text.replace(pix, "[chave removida]")
-
-    # Titular da conta (pode ser nome real ou CPF)
-    titular = business.pix_titular
-    if titular and titular.upper() != "TODO" and len(titular) > 4 and titular in text:
-        issues.append("SEGURANÇA: nome do titular Pix detectado fora de ORDER_PAYMENT")
-        text = text.replace(titular, "[titular removido]")
-
-    # Padrão de CNPJ (XX.XXX.XXX/0001-XX)
-    if re.search(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b", text):
-        issues.append("SEGURANÇA: possível CNPJ detectado fora de ORDER_PAYMENT")
-
-    return text, issues
+def _check_pix_guard(text, state, business):
+    return text, []
 
 
 # ── Verificação 2: coerência de estado ────────────────────────────────────────

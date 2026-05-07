@@ -9,6 +9,7 @@ from app.models.conversation import ConversationState
 def build_system_prompt(
     state: ConversationState,
     business: BusinessConfig | None = None,
+    catalog_text: str | None = None,
 ) -> str:
     """
     Monta o system prompt completo para o Claude, adaptado ao estado da conversa.
@@ -20,7 +21,7 @@ def build_system_prompt(
     sections = [
         _identity_section(business),
         _tone_section(),
-        _catalog_section(business),
+        _catalog_section(business, catalog_text=catalog_text),
         _hours_section(business),
         _delivery_section(business),
         _pix_section(business),
@@ -63,8 +64,8 @@ Exemplos do que EVITAR:
 - "Fica tranquilo que já já tá indo aí kkk" (informal demais)"""
 
 
-def _catalog_section(b: BusinessConfig) -> str:
-    catalog = b.get_catalog_text()
+def _catalog_section(b: BusinessConfig, catalog_text: str | None = None) -> str:
+    catalog = catalog_text if catalog_text else b.get_catalog_text()
     if not catalog:
         return "# Catálogo\nO catálogo está sendo atualizado. Informe ao cliente que em breve os produtos estarão disponíveis."
 

@@ -18,7 +18,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:6-alpine
     ports:
       - "6379:6379"
     volumes:
@@ -36,7 +36,18 @@ services:
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-evo_key_change_me}
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://fn_user:${DB_PASSWORD:-changeme}@postgres:5432/fn_mercadinho
+      - DATABASE_ENABLED=true
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - REDIS_ENABLED=true
       - REDIS_URI=redis://redis:6379
+      - REDIS_PREFIX=evolution
+      - SERVER_URL=http://3.19.75.246:8080
+      - CORS_ORIGIN=*
+      - SSL=false
     ports:
       - "8080:8080"
     depends_on:
@@ -53,9 +64,9 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://fn_user:${DB_PASSWORD:-changeme}@postgres:5432/fn_mercadinho
       - REDIS_URL=redis://redis:6379
-      - EVOLUTION_API_URL=http://evolution-api:8080
+      - EVOLUTION_API_URL=http://172.17.0.1:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-evo_key_change_me}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=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
       - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
       - ENV=development
     ports:

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.conversation.engine import ConversationEngine
-from app.core.whatsapp.webhook_parser import parse_webhook
+from app.core.whatsapp.webhook_parser import parse_whatsapp_message as parse_webhook
 from app.database.session import get_db
 
 router = APIRouter()
@@ -63,6 +63,7 @@ async def receive_webhook(
         )
 
     event_type = payload.get("event", "unknown")
+    print("PAYLOAD RAW:", payload, flush=True)
     logger.debug("Webhook recebido: event=%s", event_type)
 
     # Parseia payload para InboundMessage
@@ -76,10 +77,10 @@ async def receive_webhook(
     try:
         engine = ConversationEngine(db=db)
         await engine.handle(inbound)
-    except Exception:
-        logger.exception(
-            "Erro ao processar mensagem de %s", inbound.phone
-        )
+    except Exception as e:
+        import traceback
+        print("ERRO WEBHOOK:", e, flush=True)
+        traceback.print_exc()
         # Retorna 200 mesmo com erro — não queremos que a Evolution API faça retry spam
 
     return {"status": "processed"}
