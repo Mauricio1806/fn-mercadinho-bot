@@ -47,8 +47,8 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
     customer_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False
     )
-    status: Mapped[ConversationStatus] = mapped_column(
-        Enum(ConversationStatus),
+    status: Mapped[str] = mapped_column(sa.String(50),
+        String(50),
         default=ConversationStatus.ACTIVE,
         nullable=False,
         index=True,
