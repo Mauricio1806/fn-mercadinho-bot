@@ -73,9 +73,11 @@ def _catalog_section(b: BusinessConfig, catalog_text: str | None = None) -> str:
 {catalog}
 
 Ao receber pedidos:
-- Identifique os produtos pelo nome, mesmo com abreviação ou erro de digitação
-- Use seu julgamento para interpretar o que o cliente quer
-- Se o produto não existir, avise com naturalidade: "Esse não temos, mas posso te ajudar com outra coisa?"
+- SEMPRE busque no catálogo acima antes de dizer que não tem um produto
+- Os nomes dos produtos são abreviados — "salsicha" encontra "Salsicha Hotdog Kg", "pão de forma" encontra "Pao de Forma Frutas Sem Gluten Vitalin", etc
+- Use correspondência parcial e flexível: ignore acentos, maiúsculas, abreviações
+- Só diga que não tem se realmente não encontrar NADA parecido no catálogo
+- Se encontrar vários produtos similares, liste as opções com preços para o cliente escolher
 - Calcule os preços corretamente pelo catálogo"""
 
 
