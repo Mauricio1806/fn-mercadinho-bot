@@ -526,28 +526,27 @@ class ConversationEngine:
         await self._db.flush()
 
     async def _get_catalog_text(self) -> str:
-        import time
-        global _catalog_cache, _catalog_cache_time
-        if _catalog_cache and (time.time() - _catalog_cache_time) < _CATALOG_CACHE_TTL:
-            return _catalog_cache
+        return "Use a ferramenta buscar_produtos para consultar produtos e preços. Sempre use essa ferramenta quando o cliente perguntar sobre qualquer produto."
+
+    async def _search_products(self, termo: str) -> str:
         try:
             from app.database.session import AsyncSessionLocal
             async with AsyncSessionLocal() as session:
                 result = await session.execute(
-                    text("SELECT p.name, p.price, pc.name as category FROM products p JOIN product_categories pc ON p.category_id = pc.id WHERE p.is_available = true ORDER BY pc.name, p.name")
+                    text("""SELECT p.name, p.price, pc.name as category
+                    FROM products p JOIN product_categories pc ON p.category_id = pc.id
+                    WHERE p.is_available = true AND p.name ILIKE :q
+                    ORDER BY p.name LIMIT 15"""),
+                    {"q": f"%{termo}%"}
                 )
                 rows = result.fetchall()
-            lines = []
-            current_cat = None
+            if not rows:
+                return f"Nenhum produto encontrado para '{termo}'."
+            lines = [f"Produtos encontrados para '{termo}':"]
             for row in rows:
-                if row.category != current_cat:
-                    current_cat = row.category
-                    lines.append(f"[{current_cat}]")
-                lines.append(f"{row.name}|R${float(row.price):.2f}")
-            _catalog_cache = "\n".join(lines)
-            _catalog_cache_time = time.time()
-            return _catalog_cache
+                lines.append(f"- {row.name}: R$ {float(row.price):.2f} ({row.category})")
+            return "\n".join(lines)
         except Exception as e:
             import logging
-            logging.getLogger(__name__).error(f"Erro ao buscar catálogo: {e}")
-            return _catalog_cache or ""
+            logging.getLogger(__name__).error(f"Erro ao buscar produtos: {e}")
+            return f"Erro ao buscar '{termo}'."
