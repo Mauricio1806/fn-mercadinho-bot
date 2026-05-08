@@ -37,6 +37,12 @@ from app.models.order import Order, OrderStatus
 logger = logging.getLogger(__name__)
 
 
+# Cache do catálogo — evita buscar no banco a cada mensagem
+_catalog_cache: str = ""
+_catalog_cache_time: float = 0.0
+_CATALOG_CACHE_TTL = 300  # 5 minutos
+
+
 class ConversationEngine:
     """
     Orquestra o fluxo completo de atendimento:
@@ -520,6 +526,10 @@ class ConversationEngine:
         await self._db.flush()
 
     async def _get_catalog_text(self) -> str:
+        import time
+        global _catalog_cache, _catalog_cache_time
+        if _catalog_cache and (time.time() - _catalog_cache_time) < _CATALOG_CACHE_TTL:
+            return _catalog_cache
         try:
             from app.database.session import AsyncSessionLocal
             async with AsyncSessionLocal() as session:
@@ -534,8 +544,10 @@ class ConversationEngine:
                     current_cat = row.category
                     lines.append(f"[{current_cat}]")
                 lines.append(f"{row.name}|R${float(row.price):.2f}")
-            return "\n".join(lines)
+            _catalog_cache = "\n".join(lines)
+            _catalog_cache_time = time.time()
+            return _catalog_cache
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Erro ao buscar catálogo: {e}")
-            return ""
+            return _catalog_cache or ""
