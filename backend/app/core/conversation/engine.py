@@ -523,16 +523,18 @@ class ConversationEngine:
         try:
             from app.database.session import AsyncSessionLocal
             async with AsyncSessionLocal() as session:
-                cat_result = await session.execute(
-                    text("SELECT pc.name, COUNT(*) as total FROM products p JOIN product_categories pc ON p.category_id = pc.id WHERE p.is_available = true GROUP BY pc.name ORDER BY pc.name")
+                result = await session.execute(
+                    text("SELECT p.name, p.price, pc.name as category FROM products p JOIN product_categories pc ON p.category_id = pc.id WHERE p.is_available = true ORDER BY pc.name, p.name")
                 )
-                cats = cat_result.fetchall()
-            result_lines = ["Categorias disponíveis no mercadinho:"]
-            for cat in cats:
-                result_lines.append(f"- {cat.name} ({cat.total} produtos)")
-            result_lines.append("")
-            result_lines.append("IMPORTANTE: Temos produtos em todas essas categorias. Quando o cliente pedir qualquer item, confirme que temos e pergunte a quantidade. Nunca diga que nao temos sem ter certeza absoluta.")
-            return "\n".join(result_lines)
+                rows = result.fetchall()
+            lines = []
+            current_cat = None
+            for row in rows:
+                if row.category != current_cat:
+                    current_cat = row.category
+                    lines.append(f"[{current_cat}]")
+                lines.append(f"{row.name}|R${float(row.price):.2f}")
+            return "\n".join(lines)
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Erro ao buscar catálogo: {e}")
