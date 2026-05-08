@@ -84,6 +84,24 @@ class ConversationEngine:
         # Obtém ou cria cliente e conversa antes de qualquer decisão de tipo
         customer = await self._get_or_create_customer(message)
 
+        # Check de inatividade — fechar conversa após 5 minutos sem mensagem
+        from datetime import datetime, timezone, timedelta
+        conv_check = await self._get_or_create_conversation(customer)
+        if conv_check.updated_at:
+            inativo_ha = datetime.now(timezone.utc) - conv_check.updated_at.replace(tzinfo=timezone.utc)
+            if inativo_ha > timedelta(minutes=5) and conv_check.state not in (
+                ConversationState.GREETING, ConversationState.MAIN_MENU
+            ):
+                # Resetar conversa
+                conv_check.state = ConversationState.GREETING
+                conv_check.context_json = "{}"
+                await self._db.commit()
+                await self._whatsapp.send_text(
+                    message.phone,
+                    "Oi! Parece que ficamos um tempinho sem falar 😊 Posso te ajudar com alguma coisa?"
+                )
+                return
+
         if customer.is_blocked:
             logger.info("Cliente bloqueado ignorado: %s", message.phone)
             return
