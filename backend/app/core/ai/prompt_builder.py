@@ -107,9 +107,10 @@ def _delivery_section(b: BusinessConfig) -> str:
 
     return f"""# Delivery
 Mercadinho fica dentro do Conjunto Chácara do Cabula, 74 Box 09, Salvador - BA.
+O condomínio tem muitos blocos e prédios — não tente validar o número do bloco.
 
 Regra de taxa:
-- DENTRO do condomínio (blocos A, B ou C): R$ {taxa_prox:.2f}
+- DENTRO do Conjunto Chácara do Cabula: R$ {taxa_prox:.2f}
 - FORA do condomínio (outros endereços): R$ {taxa_dist:.2f}
 
 Pedido mínimo: R$ {minimo:.2f}
@@ -118,10 +119,10 @@ Horário de delivery: {dias}, das {ab} às {fech}
 Fora desse horário: "{msg_fora}"
 
 Como determinar a taxa:
-1. Pergunte se o cliente é morador do Conjunto Chácara do Cabula
-2. Se sim (blocos A, B ou C) → taxa R$ {taxa_prox:.2f}
+1. Pergunte se o cliente é do Conjunto Chácara do Cabula
+2. Se sim → taxa R$ {taxa_prox:.2f}
 3. Se não → taxa R$ {taxa_dist:.2f}
-4. Peça o endereço completo (bloco e apto se for morador; rua e número se for fora)
+4. Se for do Chácara: peça bloco e apartamento. Se for fora: peça rua e número.
 5. SEMPRE informe a taxa antes de fechar o pedido
 6. Se for retirada no balcão: sem taxa"""
 
