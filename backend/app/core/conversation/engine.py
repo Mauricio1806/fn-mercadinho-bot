@@ -136,6 +136,12 @@ class ConversationEngine:
         augmented_message = self._augment_message(message.text, conversation.state, order_ctx)
 
         # Chama Claude
+        # Busca prévia de produtos mencionados pelo cliente
+        produtos_ctx = await self._buscar_produtos_contexto(message.text or "")
+        if produtos_ctx:
+            user_message_com_ctx = f"{message.text}\n\n[Catálogo consultado]:\n{produtos_ctx}"
+        else:
+            user_message_com_ctx = message.text or "[mídia recebida]"
         print("CALLING CLAUDE...", flush=True)
         ai_response, tokens = await self._claude.chat(
             system_prompt=system_prompt,
