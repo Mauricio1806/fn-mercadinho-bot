@@ -84,19 +84,7 @@ class ConversationEngine:
         # Obtém ou cria cliente e conversa antes de qualquer decisão de tipo
         customer = await self._get_or_create_customer(message)
 
-        # Timeout 5 min
-        from datetime import datetime, timezone, timedelta
-        _conv = await self._get_or_create_conversation(customer)
-        if (
-            _conv.status == ConversationStatus.ACTIVE
-            and _conv.updated_at
-            and _conv.state not in (ConversationState.GREETING, ConversationState.MAIN_MENU)
-        ):
-            inativo = datetime.now(timezone.utc) - _conv.updated_at.replace(tzinfo=timezone.utc)
-            if inativo > timedelta(minutes=5):
-                _conv.status = ConversationStatus.CLOSED
-                await self._db.commit()
-                return
+
 
 
 
