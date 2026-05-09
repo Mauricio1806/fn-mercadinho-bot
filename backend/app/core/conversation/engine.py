@@ -1,18 +1,16 @@
 """Motor de conversa — orquestra estados, Claude e WhatsApp."""
-
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import BusinessConfig, get_business_config
 from app.core.ai.claude_client import ClaudeClient, get_claude_client
 from app.core.ai.prompt_builder import build_system_prompt
-from sqlalchemy import text
 from app.core.ai.response_validator import validate_response
 from app.core.conversation.handlers import (
     extract_order_total,
@@ -37,26 +35,7 @@ from app.models.order import Order, OrderStatus
 logger = logging.getLogger(__name__)
 
 
-# Cache do catálogo — evita buscar no banco a cada mensagem
-_catalog_cache: str = ""
-_catalog_cache_time: float = 0.0
-_CATALOG_CACHE_TTL = 300  # 5 minutos
-
-
 class ConversationEngine:
-    """
-    Orquestra o fluxo completo de atendimento:
-    1. Rate limit check
-    2. Identifica/cria cliente
-    3. Carrega/cria conversa ativa
-    4. Chama Claude com histórico + system prompt do estado
-    5. Extrai contexto do pedido da resposta
-    6. Atualiza estado da máquina
-    7. Cria Order no BD quando chega em ORDER_PAYMENT
-    8. Persiste mensagens
-    9. Envia resposta via WhatsApp
-    """
-
     def __init__(
         self,
         db: AsyncSession,
@@ -71,9 +50,7 @@ class ConversationEngine:
 
     async def handle(self, message: InboundMessage) -> None:
         print("ENGINE HANDLE:", message.phone, message.text, flush=True)
-        """Ponto de entrada principal — processa uma mensagem recebida."""
 
-        # Rate limiting por número
         from app.api.middleware.rate_limit import is_rate_limited
         rl = await is_rate_limited(message.phone)
         print("RATE_LIMITED:", rl, flush=True)
@@ -81,12 +58,7 @@ class ConversationEngine:
             logger.warning("Rate limit: ignorando mensagem de %s", message.phone)
             return
 
-        # Obtém ou cria cliente e conversa antes de qualquer decisão de tipo
         customer = await self._get_or_create_customer(message)
-
-
-
-
 
         if customer.is_blocked:
             logger.info("Cliente bloqueado ignorado: %s", message.phone)
@@ -94,7 +66,7 @@ class ConversationEngine:
 
         conversation = await self._get_or_create_conversation(customer)
 
-        # Imagem ou PDF em estado de pagamento → trata como comprovante PIX
+        # Imagem ou PDF em estado de pagamento → comprovante PIX
         print(f"MEDIA CHECK: image_url={bool(message.image_url)} type={message.message_type.value} state={conversation.state.value}", flush=True)
         if (
             message.image_url
@@ -107,7 +79,6 @@ class ConversationEngine:
             await self._process_payment_receipt(message, customer, conversation)
             return
 
-        # Verifica tipo (bloqueia outras mídias) e horário
         if not await self._is_allowed(message):
             return
 
@@ -122,49 +93,32 @@ class ConversationEngine:
             )
             return
 
-        # Carrega contexto do pedido
         order_ctx = OrderContext.from_json(conversation.context_json)
-
-        # Carrega histórico de mensagens
         history = self._build_history(conversation)
-
-        # System prompt baseado no estado atual
-        catalog_text = await self._get_catalog_text()
-        system_prompt = build_system_prompt(conversation.state, self._business, catalog_text=catalog_text)
-
-        # Monta mensagem aumentada com contexto quando em estados de pedido
+        system_prompt = build_system_prompt(conversation.state, self._business)
         augmented_message = self._augment_message(message.text, conversation.state, order_ctx)
 
-        # Chama Claude
-        # Busca prévia de produtos mencionados pelo cliente
-        produtos_ctx = await self._buscar_produtos_contexto(message.text or "")
-        if produtos_ctx:
-            user_message_com_ctx = f"{message.text}\n\n[Catálogo consultado]:\n{produtos_ctx}"
-        else:
-            user_message_com_ctx = message.text or "[mídia recebida]"
         print("CALLING CLAUDE...", flush=True)
+
+        # Passa a função de busca para o Claude usar via tool use
         ai_response, tokens = await self._claude.chat(
             system_prompt=system_prompt,
             history=history,
             user_message=augmented_message,
+            product_search_fn=self._search_products,
         )
 
-        # ── Checkpoint de qualidade ──────────────────────────────────────────
         validation = validate_response(ai_response, conversation.state, order_ctx, self._business)
         ai_response = validation.safe_response
-        # ─────────────────────────────────────────────────────────────────────
 
-        # Atualiza contexto do pedido com base na resposta do Claude
         order_ctx = self._update_order_context(
             order_ctx, conversation.state, ai_response, message.text
         )
 
-        # Determina próximo estado
         next_state = next_state_from_response(
             conversation.state, ai_response, message.text
         )
 
-        # Ação especial: cria o pedido no BD quando atinge ORDER_PAYMENT
         if (
             next_state == ConversationState.ORDER_PAYMENT
             and conversation.state != ConversationState.ORDER_PAYMENT
@@ -173,7 +127,6 @@ class ConversationEngine:
         ):
             order_ctx = await self._finalize_order(customer, order_ctx)
 
-        # Persiste mensagens e contexto
         await self._save_messages(
             conversation=conversation,
             user_text=message.text,
@@ -182,11 +135,9 @@ class ConversationEngine:
             whatsapp_msg_id=message.message_id,
         )
 
-        # Atualiza estado e contexto da conversa
         conversation.context_json = order_ctx.to_json()
         await self._update_conversation_state(conversation, next_state)
 
-        # Broadcast WebSocket — painel recebe a mensagem em tempo real
         await ws_manager.broadcast_conversation_update(
             conversation_id=str(conversation.id),
             message_content=ai_response,
@@ -195,7 +146,6 @@ class ConversationEngine:
             tokens_used=tokens,
         )
 
-        # Envia resposta ao cliente
         await self._whatsapp.send_typing(message.phone, duration_ms=1500)
         print("SENDING:", message.phone, ai_response[:50], flush=True)
         await self._whatsapp.send_text(message.phone, ai_response)
@@ -208,15 +158,66 @@ class ConversationEngine:
             tokens,
         )
 
+    # ── Busca de produtos via tool use ────────────────────────────────────────
+
+    async def _search_products(self, termo: str) -> str:
+        """Executada pelo Claude via tool use quando precisa buscar um produto."""
+        try:
+            from app.database.session import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    text("""
+                        SELECT p.name, p.price, pc.name as category
+                        FROM products p
+                        JOIN product_categories pc ON p.category_id = pc.id
+                        WHERE p.is_available = true
+                          AND p.name ILIKE :q
+                        ORDER BY p.name
+                        LIMIT 15
+                    """),
+                    {"q": f"%{termo}%"}
+                )
+                rows = result.fetchall()
+
+            if not rows:
+                # Tenta busca mais ampla dividindo o termo em palavras
+                palavras = termo.split()
+                if len(palavras) > 1:
+                    async with AsyncSessionLocal() as session:
+                        result = await session.execute(
+                            text("""
+                                SELECT p.name, p.price, pc.name as category
+                                FROM products p
+                                JOIN product_categories pc ON p.category_id = pc.id
+                                WHERE p.is_available = true
+                                  AND (p.name ILIKE :q1 OR p.name ILIKE :q2)
+                                ORDER BY p.name
+                                LIMIT 15
+                            """),
+                            {"q1": f"%{palavras[0]}%", "q2": f"%{palavras[-1]}%"}
+                        )
+                        rows = result.fetchall()
+
+            if not rows:
+                return f"Nenhum produto encontrado para '{termo}'. Verifique se o nome esta correto ou tente um termo diferente."
+
+            lines = [f"Produtos encontrados para '{termo}':"]
+            for row in rows:
+                lines.append(f"- {row.name}: R$ {float(row.price):.2f} ({row.category})")
+            return "\n".join(lines)
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar produtos ('{termo}'): {e}")
+            return f"Erro temporario ao buscar '{termo}'. Tente novamente."
+
     # ── Helpers ────────────────────────────────────────────────────────────────
 
     async def _is_allowed(self, message: InboundMessage) -> bool:
-        """Verifica tipo de mensagem e horário de funcionamento."""
         if not message.is_text():
             if message.message_type.value in ("audio", "image"):
                 await self._whatsapp.send_text(
                     message.phone,
-                    "Por enquanto só consigo ler mensagens de texto 😊 Pode digitar o que precisar?",
+                    "Por enquanto so consigo ler mensagens de texto 😊 Pode digitar o que precisar?",
                 )
             return False
 
@@ -225,7 +226,6 @@ class ConversationEngine:
             abertura_h, abertura_m = map(int, self._business.horario_abertura.split(":"))
             fechamento_h, fechamento_m = map(int, self._business.horario_fechamento.split(":"))
 
-            # Hora de Brasília (UTC-3)
             hora_brasilia = (now.hour - 3) % 24
             hora_atual = hora_brasilia * 60 + now.minute
             hora_abre = abertura_h * 60 + abertura_m
@@ -281,7 +281,6 @@ class ConversationEngine:
         return conversation
 
     def _build_history(self, conversation: Conversation) -> list[dict[str, str]]:
-        """Histórico sem lazy load — usa __dict__ para nova conversa."""
         messages = conversation.__dict__.get("messages", []) or []
         history = []
         for msg in messages:
@@ -295,7 +294,6 @@ class ConversationEngine:
         state: ConversationState,
         order_ctx: OrderContext,
     ) -> str:
-        """Adiciona contexto do pedido à mensagem quando relevante."""
         if state == ConversationState.ORDER_DELIVERY and order_ctx.items:
             return (
                 f"{user_text}\n\n"
@@ -310,25 +308,19 @@ class ConversationEngine:
         ai_response: str,
         user_message: str,
     ) -> OrderContext:
-        """Extrai e atualiza contexto do pedido a partir da resposta do Claude."""
-
         if state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM):
-            # Tenta extrair itens do resumo do Claude
             parsed_items = parse_items_from_claude(ai_response)
             if parsed_items:
                 ctx.items = parsed_items
                 ctx.recalculate_total()
 
-            # Total explícito
             total = extract_order_total(ai_response)
             if total and total > 0:
                 ctx.total = total
 
-            # Tipo de entrega
             ctx.delivery_type = parse_delivery_type(user_message)
 
         elif state == ConversationState.ORDER_DELIVERY:
-            # Tenta extrair bloco e apartamento da mensagem do cliente
             block, apt = extract_block_and_apartment(user_message)
             if block:
                 ctx.building_block = block
@@ -340,9 +332,7 @@ class ConversationEngine:
     async def _finalize_order(
         self, customer: Customer, order_ctx: OrderContext
     ) -> OrderContext:
-        """Cria o Order real no banco de dados."""
         try:
-            # Valida delivery se necessário
             if order_ctx.delivery_type == "delivery" and order_ctx.building_block:
                 validation = validate_delivery(
                     order_ctx.building_block,
@@ -350,14 +340,12 @@ class ConversationEngine:
                     self._business,
                 )
                 if not validation.is_valid:
-                    logger.warning("Delivery inválido: %s", validation.error_message)
-                    # Não bloqueia o fluxo — Claude já tratou isso
+                    logger.warning("Delivery invalido: %s", validation.error_message)
 
             service = OrderService(self._db)
             order = await service.create_from_context(customer, order_ctx)
             order_ctx.order_id = str(order.id)
 
-            # Notifica donos
             await notify_new_order(
                 order=order,
                 customer_phone=customer.phone,
@@ -405,19 +393,13 @@ class ConversationEngine:
         customer: Customer,
         conversation: Conversation,
     ) -> None:
-        """
-        Processa comprovante PIX enviado pelo cliente.
-        - Valida via Claude Vision
-        - Se válido: confirma venda, notifica donos, broadcast dashboard
-        - Se inválido: pede reenvio
-        """
         order_ctx = OrderContext.from_json(conversation.context_json)
         expected_total = order_ctx.total or 0.0
 
         await self._whatsapp.send_typing(message.phone, duration_ms=3000)
 
         validation = await validate_pix_receipt(
-            image_url=message.image_url,  # type: ignore[arg-type]
+            image_url=message.image_url,
             expected_amount=expected_total,
             claude=self._claude,
             business=self._business,
@@ -428,13 +410,12 @@ class ConversationEngine:
 
         if validation.is_valid:
             reply = (
-                "✅ *Comprovante confirmado!* Obrigado! 🎉\n\n"
-                "📦 Seu pedido já está sendo separado!\n"
-                "Em breve você receberá a entrega. Qualquer dúvida é só chamar 😊"
+                "Comprovante confirmado! Obrigado! 🎉\n\n"
+                "Seu pedido ja esta sendo separado!\n"
+                "Em breve voce recebera a entrega. Qualquer duvida e so chamar 😊"
             )
             await self._whatsapp.send_text(message.phone, reply)
 
-            # Atualiza pedido no banco
             if order_ctx.order_id:
                 await self._mark_order_payment_confirmed(
                     order_ctx.order_id,
@@ -442,27 +423,24 @@ class ConversationEngine:
                     conversation,
                 )
 
-            # Fecha conversa
             await self._update_conversation_state(conversation, ConversationState.CLOSED)
 
         else:
-            # fraud_result tem mensagem específica; sem ele usa formato padrão
             if validation.fraud_result and validation.fraud_result.flags:
                 reply = validation.reason
             else:
                 reply = (
-                    "😕 Não consegui validar o comprovante.\n\n"
+                    "Nao consegui validar o comprovante.\n\n"
                     f"Detalhe: {validation.reason}\n\n"
                     "Pode reenviar o comprovante? Certifique que mostra:\n"
-                    f"• Valor: *R$ {expected_total:.2f}*\n"
-                    f"• Chave PIX: *{self._business.pix_chave}*"
+                    f"Valor: R$ {expected_total:.2f}\n"
+                    f"Chave PIX: {self._business.pix_chave}"
                 )
             await self._whatsapp.send_text(message.phone, reply)
             await self._update_conversation_state(
                 conversation, ConversationState.PAYMENT_RECEIPT
             )
 
-        # Salva mensagem do cliente no histórico
         self._db.add(Message(
             conversation_id=conversation.id,
             direction=MessageDirection.INBOUND,
@@ -487,7 +465,6 @@ class ConversationEngine:
         customer: Customer,
         conversation: Conversation,
     ) -> None:
-        """Marca o pedido como pago e notifica os donos."""
         from sqlalchemy import select as sa_select
         import uuid as _uuid
 
@@ -505,7 +482,6 @@ class ConversationEngine:
             order.commission_amount = commission
             await self._db.flush()
 
-            # Broadcast para o dashboard em tempo real
             await ws_manager.broadcast_conversation_update(
                 conversation_id=str(conversation.id),
                 message_content=f"[VENDA_CONFIRMADA] Pedido {order_id[:8].upper()} — R$ {order.total_amount:.2f}",
@@ -514,7 +490,6 @@ class ConversationEngine:
                 tokens_used=0,
             )
 
-            # Notifica os dois donos
             await notify_sale_confirmed(
                 order=order,
                 customer_phone=customer.phone,
@@ -534,53 +509,3 @@ class ConversationEngine:
         if new_state == ConversationState.CLOSED:
             conversation.status = ConversationStatus.CLOSED
         await self._db.flush()
-
-    async def _buscar_produtos_contexto(self, texto: str) -> str:
-        try:
-            from app.database.session import AsyncSessionLocal
-            palavras = [p.strip('.,!?\n') for p in texto.lower().split() if len(p) > 3]
-            if not palavras:
-                return ""
-            async with AsyncSessionLocal() as session:
-                results = []
-                for palavra in palavras[:5]:
-                    result = await session.execute(
-                        text("SELECT p.name, p.price FROM products p WHERE p.is_available = true AND p.name ILIKE :q ORDER BY p.name LIMIT 3"),
-                        {"q": f"%{palavra}%"}
-                    )
-                    rows = result.fetchall()
-                    for row in rows:
-                        entry = f"{row.name}: R$ {float(row.price):.2f}"
-                        if entry not in results:
-                            results.append(entry)
-            if results:
-                return "Produtos encontrados:\n" + "\n".join(results[:15])
-            return ""
-        except Exception as e:
-            return ""
-
-    async def _get_catalog_text(self) -> str:
-        return "Temos produtos nas categorias: Acougue, Bebidas, Biscoitos, Bomboniere, Cereais e Matinais, Congelados, Conservas, Cuidados Pessoais, FLV/Horti, Frios e Laticinios, Limpeza. Os produtos e precos especificos serao fornecidos no contexto da conversa quando o cliente pedir."
-
-    async def _search_products(self, termo: str) -> str:
-        try:
-            from app.database.session import AsyncSessionLocal
-            async with AsyncSessionLocal() as session:
-                result = await session.execute(
-                    text("""SELECT p.name, p.price, pc.name as category
-                    FROM products p JOIN product_categories pc ON p.category_id = pc.id
-                    WHERE p.is_available = true AND p.name ILIKE :q
-                    ORDER BY p.name LIMIT 15"""),
-                    {"q": f"%{termo}%"}
-                )
-                rows = result.fetchall()
-            if not rows:
-                return f"Nenhum produto encontrado para '{termo}'."
-            lines = [f"Produtos encontrados para '{termo}':"]
-            for row in rows:
-                lines.append(f"- {row.name}: R$ {float(row.price):.2f} ({row.category})")
-            return "\n".join(lines)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Erro ao buscar produtos: {e}")
-            return f"Erro ao buscar '{termo}'."
