@@ -6,8 +6,31 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
 MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 1024
+
+TOOLS = [
+    {
+        "name": "buscar_produtos",
+        "description": (
+            "Busca produtos disponíveis no catálogo do FN Mercadinho pelo nome ou termo. "
+            "Use SEMPRE que o cliente mencionar qualquer produto que queira comprar. "
+            "Exemplos: 'arroz', 'leite', 'frango', 'cerveja', 'detergente'. "
+            "Faça uma busca separada para cada produto diferente mencionado."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "termo": {
+                    "type": "string",
+                    "description": "Nome ou parte do nome do produto a buscar. Use termos simples: 'arroz', 'leite integral', 'frango congelado'."
+                }
+            },
+            "required": ["termo"]
+        }
+    }
+]
 
 
 class ClaudeClient:
@@ -24,20 +47,64 @@ class ClaudeClient:
         product_search_fn=None,
     ) -> tuple[str, int]:
         messages = [*history, {"role": "user", "content": user_message}]
+        total_tokens = 0
+
         try:
-            response = await self._client.messages.create(
-                model=MODEL,
-                max_tokens=max_tokens,
-                system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
-                messages=messages,
-                timeout=25.0,
-            )
-            tokens = response.usage.input_tokens + response.usage.output_tokens
-            text = "".join(b.text for b in response.content if hasattr(b, "text"))
-            return text, tokens
+            # Loop de tool use — Haiku pode chamar buscar_produtos várias vezes
+            while True:
+                response = await self._client.messages.create(
+                    model=MODEL,
+                    max_tokens=max_tokens,
+                    system=[{
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"}
+                    }],
+                    messages=messages,
+                    tools=TOOLS,
+                    timeout=30.0,
+                )
+                total_tokens += response.usage.input_tokens + response.usage.output_tokens
+
+                # Se parou por tool_use, executa a busca e continua
+                if response.stop_reason == "tool_use":
+                    # Adiciona resposta do assistente com a tool call ao histórico
+                    messages.append({"role": "assistant", "content": response.content})
+
+                    # Processa cada tool call
+                    tool_results = []
+                    for block in response.content:
+                        if block.type == "tool_use" and block.name == "buscar_produtos":
+                            termo = block.input.get("termo", "")
+                            logger.info("Tool use: buscar_produtos('%s')", termo)
+
+                            if product_search_fn:
+                                resultado = await product_search_fn(termo)
+                            else:
+                                resultado = f"Busca não disponível para '{termo}'."
+
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": resultado,
+                            })
+
+                    # Adiciona resultados e continua o loop
+                    messages.append({"role": "user", "content": tool_results})
+                    continue
+
+                # stop_reason == "end_turn" — extrai texto final e sai
+                text = "".join(
+                    b.text for b in response.content
+                    if hasattr(b, "text") and b.type == "text"
+                )
+                return text, total_tokens
+
         except anthropic.RateLimitError:
+            logger.warning("Rate limit Anthropic atingido")
             return "Desculpa, estou sobrecarregado agora 😅 Tenta de novo em instantes!", 0
         except anthropic.APIConnectionError:
+            logger.warning("Falha de conexão com Anthropic")
             return "Tô com problema de conexão agora 😔 Tenta de novo!", 0
         except Exception as e:
             logger.exception(f"Erro no Claude: {e}")
@@ -59,7 +126,14 @@ class ClaudeClient:
                 messages=[{
                     "role": "user",
                     "content": [
-                        {"type": "image", "source": {"type": "base64", "media_type": image_media_type, "data": image_data}},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": image_media_type,
+                                "data": image_data
+                            }
+                        },
                         {"type": "text", "text": prompt}
                     ]
                 }],
@@ -87,7 +161,14 @@ class ClaudeClient:
                 messages=[{
                     "role": "user",
                     "content": [
-                        {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": document_data}},
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "application/pdf",
+                                "data": document_data
+                            }
+                        },
                         {"type": "text", "text": prompt}
                     ]
                 }],
