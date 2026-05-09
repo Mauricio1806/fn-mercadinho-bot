@@ -104,3 +104,33 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+@app.on_event("startup")
+async def start_cleanup_job():
+    import asyncio
+    async def cleanup_inactive_conversations():
+        while True:
+            await asyncio.sleep(300)  # Roda a cada 5 minutos
+            try:
+                from app.database.session import AsyncSessionLocal
+                from sqlalchemy import text
+                from datetime import datetime, timezone, timedelta
+                async with AsyncSessionLocal() as db:
+                    cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+                    result = await db.execute(text("""
+                        UPDATE conversations 
+                        SET status = 'closed'
+                        WHERE status = 'ACTIVE' 
+                        AND state NOT IN ('GREETING', 'MAIN_MENU')
+                        AND updated_at < :cutoff
+                        RETURNING id
+                    """), {"cutoff": cutoff})
+                    closed = result.rowcount
+                    await db.commit()
+                    if closed:
+                        import logging
+                        logging.getLogger(__name__).info(f"Fechadas {closed} conversas inativas")
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Erro no cleanup: {e}")
+    asyncio.create_task(cleanup_inactive_conversations())
