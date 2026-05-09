@@ -12,7 +12,7 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-haiku-4-5-20251001"  # 20x mais barato que Sonnet
 MAX_TOKENS = 1024
 
 
