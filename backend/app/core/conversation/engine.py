@@ -92,9 +92,8 @@ class ConversationEngine:
             if inativo_ha > timedelta(minutes=5) and conv_check.state not in (
                 ConversationState.GREETING, ConversationState.MAIN_MENU
             ):
-                # Resetar conversa
-                conv_check.state = ConversationState.GREETING
-                conv_check.context_json = "{}"
+                # Fechar conversa antiga e criar nova
+                conv_check.status = ConversationStatus.CLOSED
                 await self._db.commit()
                 await self._whatsapp.send_text(
                     message.phone,
