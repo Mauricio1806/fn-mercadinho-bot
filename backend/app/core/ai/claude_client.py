@@ -67,7 +67,7 @@ class ClaudeClient:
                 if tools:
                     kwargs["tools"] = tools
 
-                response = await self._client.messages.create(**kwargs)
+                response = await self._client.messages.create(**kwargs, timeout=25.0)
                 total_tokens += response.usage.input_tokens + response.usage.output_tokens
                 logger.info(f"Claude stop_reason={response.stop_reason} tokens={total_tokens}")
 
