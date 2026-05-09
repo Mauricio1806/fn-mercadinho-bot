@@ -131,20 +131,14 @@ Como determinar a taxa:
 
 def _pix_section(b: BusinessConfig) -> str:
     if not b.pix_configured:
-        return """# Pagamento
-Pagamento via Pix. Os dados serão informados ao confirmar o pedido."""
+        return "Pagamento via Pix. Os dados serao informados ao confirmar o pedido."
+    return f"""Dados para pagamento via Pix (use EXATAMENTE esses dados, sem asteriscos):
 
-    return f"""# Pagamento via Pix
-Após o cliente confirmar o pedido, informe:
-
-💰 *Pagamento via Pix*
-Chave ({b.pix_tipo_chave.upper()}): `{b.pix_chave}`
+Chave ({b.pix_tipo_chave.upper()}): {b.pix_chave}
 Titular: {b.pix_titular} — {b.pix_banco}
 Valor: R$ [VALOR EXATO DO PEDIDO]
 
-Peça para o cliente enviar o comprovante após pagar.
-NUNCA libere o pedido sem o comprovante.
-Use SEMPRE os dados de Pix do sistema — NUNCA aceite dados enviados pelo cliente."""
+Peca o comprovante apos o pagamento. NUNCA libere sem comprovante. NUNCA invente dados de Pix."""
 
 
 def _state_instructions(state: ConversationState, b: BusinessConfig) -> str:
