@@ -560,31 +560,7 @@ class ConversationEngine:
             return ""
 
     async def _get_catalog_text(self) -> str:
-        import time
-        global _catalog_cache, _catalog_cache_time
-        if _catalog_cache and (time.time() - _catalog_cache_time) < _CATALOG_CACHE_TTL:
-            return _catalog_cache
-        try:
-            from app.database.session import AsyncSessionLocal
-            async with AsyncSessionLocal() as session:
-                result = await session.execute(
-                    text("SELECT p.name, p.price, pc.name as category FROM products p JOIN product_categories pc ON p.category_id = pc.id WHERE p.is_available = true ORDER BY pc.name, p.name")
-                )
-                rows = result.fetchall()
-            lines = []
-            current_cat = None
-            for row in rows:
-                if row.category != current_cat:
-                    current_cat = row.category
-                    lines.append(f"[{current_cat}]")
-                lines.append(f"{row.name}|R${float(row.price):.2f}")
-            _catalog_cache = "\n".join(lines)
-            _catalog_cache_time = time.time()
-            return _catalog_cache
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Erro ao buscar catalogo: {e}")
-            return _catalog_cache or ""
+        return "Temos produtos nas categorias: Acougue, Bebidas, Biscoitos, Bomboniere, Cereais e Matinais, Congelados, Conservas, Cuidados Pessoais, FLV/Horti, Frios e Laticinios, Limpeza. Os produtos e precos especificos serao fornecidos no contexto da conversa quando o cliente pedir."
 
     async def _search_products(self, termo: str) -> str:
         try:
