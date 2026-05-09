@@ -87,14 +87,15 @@ class ConversationEngine:
         # Check de inatividade — fechar conversa após 5 minutos sem mensagem
         from datetime import datetime, timezone, timedelta
         conv_check = await self._get_or_create_conversation(customer)
-        if conv_check.updated_at:
+        if conv_check.updated_at and conv_check.status == ConversationStatus.ACTIVE:
             inativo_ha = datetime.now(timezone.utc) - conv_check.updated_at.replace(tzinfo=timezone.utc)
             if inativo_ha > timedelta(minutes=5) and conv_check.state not in (
                 ConversationState.GREETING, ConversationState.MAIN_MENU
             ):
-                # Fechar conversa antiga e retornar — nova conversa será criada na próxima mensagem
+                # Fechar conversa antiga e retornar — nova conversa criada na próxima mensagem
                 conv_check.status = ConversationStatus.CLOSED
                 await self._db.commit()
+                return
 
         if customer.is_blocked:
             logger.info("Cliente bloqueado ignorado: %s", message.phone)
