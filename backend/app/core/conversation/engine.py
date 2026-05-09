@@ -535,6 +535,30 @@ class ConversationEngine:
             conversation.status = ConversationStatus.CLOSED
         await self._db.flush()
 
+    async def _buscar_produtos_contexto(self, texto: str) -> str:
+        try:
+            from app.database.session import AsyncSessionLocal
+            palavras = [p.strip('.,!?\n') for p in texto.lower().split() if len(p) > 3]
+            if not palavras:
+                return ""
+            async with AsyncSessionLocal() as session:
+                results = []
+                for palavra in palavras[:5]:
+                    result = await session.execute(
+                        text("SELECT p.name, p.price FROM products p WHERE p.is_available = true AND p.name ILIKE :q ORDER BY p.name LIMIT 3"),
+                        {"q": f"%{palavra}%"}
+                    )
+                    rows = result.fetchall()
+                    for row in rows:
+                        entry = f"{row.name}: R$ {float(row.price):.2f}"
+                        if entry not in results:
+                            results.append(entry)
+            if results:
+                return "Produtos encontrados:\n" + "\n".join(results[:15])
+            return ""
+        except Exception as e:
+            return ""
+
     async def _get_catalog_text(self) -> str:
         import time
         global _catalog_cache, _catalog_cache_time
