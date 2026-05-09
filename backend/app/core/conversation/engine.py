@@ -92,15 +92,14 @@ class ConversationEngine:
             if inativo_ha > timedelta(minutes=5) and conv_check.state not in (
                 ConversationState.GREETING, ConversationState.MAIN_MENU
             ):
-                # Fechar conversa antiga
+                # Fechar conversa antiga e criar nova
                 conv_check.status = ConversationStatus.CLOSED
                 await self._db.commit()
-                # Avisar cliente e deixar a nova mensagem ser processada normalmente
                 await self._whatsapp.send_text(
                     message.phone,
-                    "Oi! Ficamos um tempinho sem falar, então reiniciei nosso atendimento 😊"
+                    "Oi! Parece que ficamos um tempinho sem falar 😊 Posso te ajudar com alguma coisa?"
                 )
-                # Não retorna — deixa a mensagem atual ser processada em nova conversa
+                return
 
         if customer.is_blocked:
             logger.info("Cliente bloqueado ignorado: %s", message.phone)
