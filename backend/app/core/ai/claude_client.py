@@ -33,60 +33,77 @@ class ClaudeClient:
         system_prompt: str,
         history: list[dict[str, str]],
         user_message: str,
-        max_tokens: int = MAX_TOKENS,
+        max_tokens: int = 1024,
+        product_search_fn=None,
     ) -> tuple[str, int]:
-        """
-        Envia mensagem para Claude com histórico.
-
-        Args:
-            system_prompt: Prompt de sistema (com cache).
-            history: Lista de dicts {"role": "user"/"assistant", "content": "..."}.
-            user_message: Mensagem atual do usuário.
-            max_tokens: Limite de tokens na resposta.
-
-        Returns:
-            Tuple (resposta: str, tokens_usados: int).
-        """
         messages = [*history, {"role": "user", "content": user_message}]
+        tools = [
+            {
+                "name": "buscar_produtos",
+                "description": "Busca produtos no catalogo do mercadinho por termo. Use sempre que o cliente pedir um produto.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "termo": {"type": "string", "description": "Termo de busca, ex: salsicha, pao de forma, cerveja"}
+                    },
+                    "required": ["termo"]
+                }
+            }
+        ] if product_search_fn else []
+
+        total_tokens = 0
+        max_iterations = 5
+        iteration = 0
 
         try:
-            response = await self._client.messages.create(
-                model=MODEL,
-                max_tokens=max_tokens,
-                system=[
-                    {
-                        "type": "text",
-                        "text": system_prompt,
-                        # Cache o system prompt — economiza tokens em conversas longas
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ],
-                messages=messages,
-            )
+            while iteration < max_iterations:
+                iteration += 1
+                kwargs = dict(
+                    model=MODEL,
+                    max_tokens=max_tokens,
+                    system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
+                    messages=messages,
+                )
+                if tools:
+                    kwargs["tools"] = tools
 
-            text = response.content[0].text if response.content else ""
-            tokens = response.usage.input_tokens + response.usage.output_tokens
+                response = await self._client.messages.create(**kwargs)
+                total_tokens += response.usage.input_tokens + response.usage.output_tokens
+                logger.info(f"Claude stop_reason={response.stop_reason} tokens={total_tokens}")
 
-            logger.debug(
-                "Claude respondeu: %d tokens (input=%d output=%d cache_hit=%s)",
-                tokens,
-                response.usage.input_tokens,
-                response.usage.output_tokens,
-                getattr(response.usage, "cache_read_input_tokens", 0),
-            )
+                if response.stop_reason == "tool_use" and product_search_fn:
+                    tool_block = next((b for b in response.content if b.type == "tool_use"), None)
+                    if tool_block and tool_block.name == "buscar_produtos":
+                        termo = tool_block.input.get("termo", "")
+                        logger.info(f"Buscando produtos: {termo}")
+                        resultado = await product_search_fn(termo)
+                        logger.info(f"Resultado: {(resultado or '')[:100]}")
+                        messages = [
+                            *messages,
+                            {"role": "assistant", "content": response.content},
+                            {"role": "user", "content": [
+                                {"type": "tool_result", "tool_use_id": tool_block.id, "content": resultado or "Nenhum produto encontrado."}
+                            ]}
+                        ]
+                        continue
 
-            return text, tokens
+                # Extrair texto da resposta
+                text = ""
+                for block in response.content:
+                    if hasattr(block, "text"):
+                        text += block.text
+                return text, total_tokens
+
+            return "Deixa eu verificar e já te respondo!", total_tokens
 
         except anthropic.RateLimitError:
-            logger.warning("Rate limit atingido no Claude. Usando fallback.")
+            logger.warning("Rate limit atingido.")
             return "Desculpa, estou sobrecarregado agora 😅 Tenta de novo em instantes!", 0
-
         except anthropic.APIConnectionError:
-            logger.error("Sem conexão com a API Anthropic.")
+            logger.error("Sem conexão com Anthropic.")
             return "Tô com problema de conexão agora 😔 Tenta de novo!", 0
-
         except Exception as e:
-            logger.exception("Erro inesperado no Claude: %s", e)
+            logger.exception(f"Erro no Claude: {e}")
             return "Opa, tive um probleminha aqui 🙈 Pode repetir?", 0
 
     async def chat_with_document(
