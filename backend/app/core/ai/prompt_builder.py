@@ -118,15 +118,18 @@ def _pix_section(b: BusinessConfig) -> str:
     if not b.pix_configured:
         return "Pagamento via Pix. Os dados serao informados ao confirmar o pedido."
     return f"""# Pagamento Pix
-Use EXATAMENTE esses dados, sem asteriscos, sem negrito, sem formatacao:
+Quando for cobrar, envie EXATAMENTE este texto, sem alterar nada, sem gerar codigo QR, sem codigo EMV:
 
+---
+Pague via Pix:
 Chave {b.pix_tipo_chave.upper()}: {b.pix_chave}
-Titular: {b.pix_titular} — {b.pix_banco}
-Valor: [VALOR EXATO DO PEDIDO incluindo taxa de entrega]
+Titular: {b.pix_titular} ({b.pix_banco})
+Valor: R$ [VALOR EXATO]
+---
 
-Peca o comprovante apos o pagamento.
-NUNCA libere o pedido sem comprovante validado pelo sistema.
-NUNCA invente ou altere dados de Pix."""
+NUNCA gere codigo QR, codigo EMV (aquele texto longo com 00020126...) ou qualquer outro formato.
+NUNCA invente ou altere dados de Pix.
+NUNCA libere o pedido sem comprovante validado pelo sistema."""
 
 
 def _state_instructions(state: ConversationState, b: BusinessConfig) -> str:
@@ -177,9 +180,10 @@ Solicite:
 2. Endereco completo (bloco e apto, ou rua e numero)
 Confirme o total com taxa incluida.""",
 
-        ConversationState.ORDER_PAYMENT: """# Agora: Pagamento
+       ConversationState.ORDER_PAYMENT: """# Agora: Pagamento
 Envie os dados do Pix com o valor exato (ja incluindo taxa de entrega).
-TEXTO SIMPLES, sem asteriscos, sem negrito.
+TEXTO SIMPLES, sem asteriscos, sem negrito, sem codigo QR, sem codigo EMV.
+Assim que o cliente confirmar o pedido, envie os dados do Pix IMEDIATAMENTE — nao espere o cliente pedir.
 Peca para o cliente enviar o comprovante apos pagar.
 Informe o tempo estimado de entrega.""",
 
