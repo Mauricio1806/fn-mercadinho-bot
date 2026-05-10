@@ -76,7 +76,7 @@ Dados esperados:
 Verifique:
 1. É realmente um comprovante de transação PIX (não uma tela de agendamento, saldo ou outra coisa)?
 2. O valor pago bate com R$ {expected_amount:.2f}?
-3. O destinatário ou chave PIX corresponde ao mercadinho?
+3. O destinatário ou chave PIX corresponde ao mercadinho? (CNPJ pode aparecer mascarado ex: 60.***.***/0001-4* — considere válido se os dígitos visíveis forem compatíveis ou se o nome/banco bater)
 
 Responda SOMENTE com JSON válido (sem markdown, sem texto extra):
 {{
