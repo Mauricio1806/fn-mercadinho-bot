@@ -1,0 +1,101 @@
+# ══════════════════════════════════════════════
+# FN Mercadinho — Configuração do Negócio
+# ══════════════════════════════════════════════
+
+mercadinho:
+  nome: "FN Mercadinho"
+  slogan: "O endereço da economia!"
+  logo: "WhatsApp Image 2026-04-19 at 20.43.54.jpeg"
+  endereco: "Conjunto Chácara do Cabula, 74 Box 09, Salvador - BA, 41150030"
+  instagram: "fnmercadinhooficial"
+  telefone: "99135-6145"
+
+cores:
+  primaria: "#2E7D32"
+  secundaria: "#FFA000"
+  accent: "#D32F2F"
+
+horario:
+  dias: "Segunda a sábado"
+  abertura: "07:00"
+  fechamento: "21:00"
+  domingo_abertura: "08:00"
+  domingo_fechamento: "12:30"
+  msg_fora_horario: "Estamos fechados agora! 😊 Segunda a sábado das 7h às 21h, domingo das 8h às 12h30."
+
+delivery:
+  tipo: "distancia"
+  blocos: []
+  taxa_proxima: 3.00                  # até 500 metros
+  taxa_distante: 5.00                 # mais de 500 metros
+  raio_taxa_proxima: 500              # metros
+  pedido_minimo: 15.00
+  tempo_estimado: "15-30 min"
+  horario_abertura: "08:00"
+  horario_fechamento: "20:00"
+  dias_semana: "Segunda a sexta"
+  msg_fora_horario_delivery: "Delivery disponível de segunda a sexta, das 8h às 20h 😊"
+
+pix:
+  tipo_chave: "cnpj"
+  chave: "60747738000149"
+  titular: "FN Mercadinho"
+  banco: "SumUp"
+
+# Catálogo resumido para o bot (categorias principais).
+# O catálogo completo com todos os produtos está em config/catalog_full.yaml
+# e é carregado no banco de dados via: make seed
+catalogo:
+  - categoria: "Bebidas"
+    descricao: "Refrigerantes, sucos, água, energéticos, cerveja e outras bebidas"
+  - categoria: "Biscoitos"
+    descricao: "Biscoitos doces, salgados e recheados"
+  - categoria: "Bomboniere"
+    descricao: "Chocolates, balas, chicletes e doces"
+  - categoria: "Cereais e Matinais"
+    descricao: "Farinhas, cereais, granola, aveia e café da manhã"
+  - categoria: "Conservas"
+    descricao: "Conservas, molhos e temperos"
+  - categoria: "Congelados"
+    descricao: "Frangos, carnes congeladas e produtos congelados em geral"
+  - categoria: "Cuidados Pessoais"
+    descricao: "Higiene pessoal, cosméticos e medicamentos básicos"
+  - categoria: "Frios e Laticínios"
+    descricao: "Queijos, frios, presunto, iogurte e laticínios"
+  - categoria: "FLV / Horti"
+    descricao: "Frutas, legumes, verduras e hortaliças frescas"
+  - categoria: "Limpeza"
+    descricao: "Produtos de limpeza doméstica"
+  - categoria: "Açougue"
+    descricao: "Carnes bovinas, suínas e aves"
+  - categoria: "Utilidades Domésticas"
+    descricao: "Utensílios, pilhas, isqueiros e itens para o lar"
+  - categoria: "Geral"
+    descricao: "Outros produtos variados"
+
+personalidade:
+  tom: "amigável e informal"
+  usa_emojis: true
+  emojis: ["👋", "✅", "📦", "💰", "😊"]
+  saudacao: "Olá! Bem-vindo ao FN Mercadinho 👋"
+  despedida: "Obrigado! Até a próxima 😊"
+  tratamento: "você"
+  girias_baianas: true
+  quando_nao_entende: "Desculpa, não entendi 😅 Pode repetir?"
+  quando_sem_estoque: "Poxa, tá em falta 😕 Posso sugerir outra coisa?"
+  quando_fora_area: "Entregamos em até 500m do mercadinho. Pode vir buscar também! 😊"
+
+notificacao:
+  whatsapp_dono_1: "+5571991356145"
+  whatsapp_dono_2: "+5571993266224"
+  alertar_pedido_alto: true
+  valor_alto: 100.00
+  comissao_percentual: 5.0            # % de comissão sobre vendas confirmadas
+
+tecnico:
+  anthropic_api_key: "TODO"           # via env var ANTHROPIC_API_KEY
+  evolution_api_url: "TODO"           # gerado no deploy
+  evolution_api_key: "TODO"           # gerado no deploy
+  numero_bot: "TODO"                  # número WhatsApp do bot
+  admin_email: "TODO"                 # email do admin
+  admin_senha: "TODO"                 # via env var
