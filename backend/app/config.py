@@ -239,7 +239,7 @@ def load_business_config(path: str | None = None) -> BusinessConfig:
     config_path = path or os.getenv("BUSINESS_CONFIG_PATH", "config/business.yaml")
     resolved = Path(config_path)
     if not resolved.is_absolute():
-        resolved = Path(__file__).parent.parent.parent / config_path
+        resolved = Path(__file__).parent.parent / config_path
     if not resolved.exists():
         return BusinessConfig({})
     with resolved.open("r", encoding="utf-8") as f:
