@@ -72,10 +72,6 @@ class ConversationEngine:
         if (
             message.image_url
             and message.message_type.value in ("image", "document")
-            and conversation.state in (
-                ConversationState.ORDER_PAYMENT,
-                ConversationState.PAYMENT_RECEIPT,
-            )
         ):
             await self._process_payment_receipt(message, customer, conversation)
             return
