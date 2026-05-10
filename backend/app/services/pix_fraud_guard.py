@@ -165,23 +165,34 @@ async def check_fraud(
     else:
         result.fail("VALOR_NAO_ENCONTRADO: Não foi possível extrair o valor do comprovante.")
 
+    # CHECK 4: Recebedor errado (vetor #4)
+    if pix_keys:
+        recipient_key = (data.get("recipient_key") or "").strip()
+        if recipient_key and recipient_key not in pix_keys:
+            result.fail(
+                f"CHAVE_PIX_ERRADA: Comprovante para '{recipient_key}', "
+                f"não bate com chaves do FN Mercadinho."
+            )
 
-    # CHECK 4: Recebedor — qualquer evidencia passa (nome, sumup, cnpj mascarado)
-    recipient_key = (data.get("recipient_key") or "").strip().lower()
-    recipient_name = (data.get("recipient_name") or "").strip().lower()
-    raw_text_low = (data.get("raw_text") or "").lower()
-    bank_low = (data.get("bank") or "").lower()
-    import re as _re
-    cnpj_digits = _re.sub(r"[^0-9]", "", recipient_key)
-    CNPJ = "60747738000149"
-    evidencia_nome = any(t in recipient_name or t in raw_text_low for t in ["fn merc", "fn mercadinho"])
-    evidencia_sumup = any(t in bank_low or t in raw_text_low for t in ["sumup", "sum up"])
-    evidencia_cnpj = len(cnpj_digits) >= 4 and cnpj_digits in CNPJ
-    if not (evidencia_nome or evidencia_sumup or evidencia_cnpj):
-        result.fail(
-            f"RECEBEDOR_ERRADO: sem evidencia do FN Mercadinho. nome='{recipient_name}' banco='{bank_low}' chave='{recipient_key}'"
-        )
+    if recipient_names:
+        recipient_name = (data.get("recipient_name") or "").lower().strip()
+        if recipient_name:
+            match = any(
+                valid in recipient_name or recipient_name in valid
+                for valid in recipient_names
+            )
+            if not match:
+                result.fail(
+                    f"RECEBEDOR_ERRADO: Nome no comprovante '{recipient_name}' "
+                    f"não corresponde ao FN Mercadinho."
+                )
 
+    # CHECK 5: Data/hora do comprovante (vetor #3 — outra transação antiga)
+    payment_dt = _parse_datetime(data.get("date"), data.get("time"))
+    if payment_dt:
+        now = datetime.utcnow() - timedelta(hours=3)  # BRT
+        age_minutes = (now - payment_dt).total_seconds() / 60
+        if age_minutes > MAX_RECEIPT_AGE_MINUTES:
             result.fail(
                 f"COMPROVANTE_ANTIGO: Pagamento de {payment_dt.strftime('%d/%m %H:%M')}, "
                 f"há {int(age_minutes)} minutos. Limite: {MAX_RECEIPT_AGE_MINUTES}min."
