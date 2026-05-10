@@ -194,7 +194,7 @@ class ConversationEngine:
                                 ORDER BY p.name
                                 LIMIT 15
                             """),
-                            {"q1": f"%{palavras[0]}%", "q2": f"%{palavras[-1]}%"}
+                            {"q1": f"%{palavras[0]}%", "q2": f"%{palavras[1]}%"}
                         )
                         rows = result.fetchall()
 
