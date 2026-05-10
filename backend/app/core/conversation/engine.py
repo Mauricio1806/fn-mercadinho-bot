@@ -423,6 +423,18 @@ class ConversationEngine:
     ) -> None:
         order_ctx = OrderContext.from_json(conversation.context_json)
         expected_total = order_ctx.total or 0.0
+        # Se total zerado, busca do ultimo pedido do cliente no banco
+        if not expected_total and order_ctx.order_id:
+            from sqlalchemy import select as _select
+            import uuid as _uuid
+            from app.models.order import Order as _Order
+            try:
+                _r = await self._db.execute(_select(_Order).where(_Order.id == _uuid.UUID(order_ctx.order_id)))
+                _o = _r.scalar_one_or_none()
+                if _o:
+                    expected_total = float(_o.total_amount)
+            except Exception:
+                pass
 
         await self._whatsapp.send_typing(message.phone, duration_ms=3000)
 
