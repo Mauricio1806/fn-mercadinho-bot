@@ -148,11 +148,38 @@ class ConversationEngine:
 
         await self._whatsapp.send_typing(message.phone, duration_ms=1500)
         print("SENDING:", message.phone, ai_response[:50], flush=True)
+
+        # Se entrou em ORDER_PAYMENT agora, envia Pix automaticamente — ignora resposta do Claude
         if next_state == ConversationState.ORDER_PAYMENT or conversation.state == ConversationState.ORDER_PAYMENT:
             b = self._business
             total = order_ctx.total or 0.0
-            ai_response = f"Pague via Pix 💰\nChave {b.pix_tipo_chave.upper()}: {b.pix_chave}\nTitular: {b.pix_titular} ({b.pix_banco})\nValor: R$ {total:.2f}\n\nApos pagar, manda o comprovante aqui pra gente confirmar e separar seu pedido! Tempo estimado: 15 a 30 minutos 👍"
-        await self._whatsapp.send_text(message.phone, ai_response)
+            pix_msg = (
+                f"Pague via Pix 💰\n"
+                f"Chave {b.pix_tipo_chave.upper()}: {b.pix_chave}\n"
+                f"Titular: {b.pix_titular} ({b.pix_banco})\n"
+                f"Valor: R$ {total:.2f}\n\n"
+                f"Apos pagar, manda o comprovante aqui pra gente confirmar e separar seu pedido! "
+                f"Tempo estimado: 15 a 30 minutos 👍"
+            )
+            await self._whatsapp.send_text(message.phone, pix_msg)
+        elif conversation.state == ConversationState.PAYMENT_RECEIPT:
+            # Cliente esta aguardando — so reenvia o Pix se pedir, sem EMV
+            b = self._business
+            total = order_ctx.total or 0.0
+            pix_msg = (
+                f"Pague via Pix 💰\n"
+                f"Chave {b.pix_tipo_chave.upper()}: {b.pix_chave}\n"
+                f"Titular: {b.pix_titular} ({b.pix_banco})\n"
+                f"Valor: R$ {total:.2f}\n\n"
+                f"Apos pagar, manda o comprovante aqui (foto ou PDF do banco)!"
+            )
+            pix_keywords = re.compile(r"pix|codigo|chave|pagar|pagamento", re.IGNORECASE)
+            if pix_keywords.search(message.text or ""):
+                await self._whatsapp.send_text(message.phone, pix_msg)
+            else:
+                await self._whatsapp.send_text(message.phone, ai_response)
+        else:
+            await self._whatsapp.send_text(message.phone, ai_response)
 
         logger.info(
             "Atendimento: customer=%s state=%s→%s tokens=%d",
