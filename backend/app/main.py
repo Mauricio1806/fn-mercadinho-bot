@@ -120,7 +120,7 @@ async def start_cleanup_job():
                     result = await db.execute(text("""
                         UPDATE conversations 
                         SET status = 'closed'
-                        WHERE status = 'ACTIVE' 
+                        WHERE status IN ('ACTIVE', 'active') 
                         AND state NOT IN ('GREETING', 'MAIN_MENU')
                         AND updated_at < :cutoff
                         RETURNING id
