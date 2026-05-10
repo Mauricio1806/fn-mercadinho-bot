@@ -55,7 +55,7 @@ async def receive_webhook(
         )
 
     try:
-        payload: dict[str, Any] = await request.json()
+        import json as _json; payload: dict[str, Any] = _json.loads(body)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
