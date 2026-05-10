@@ -116,7 +116,7 @@ async def start_cleanup_job():
                 from sqlalchemy import text
                 from datetime import datetime, timezone, timedelta
                 async with AsyncSessionLocal() as db:
-                    cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+                    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
                     result = await db.execute(text("""
                         UPDATE conversations 
                         SET status = 'closed'
