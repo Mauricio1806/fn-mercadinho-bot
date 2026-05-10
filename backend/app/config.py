@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     env: str = "development"
     log_level: str = "INFO"
     allowed_origins: str = "http://localhost:3000"
-    business_config_path: str = "../config/business.yaml"
+    business_config_path: str = "config/business.yaml"
     service_api_key: str = "service_key_change_me"
 
     @field_validator("allowed_origins", mode="before")
@@ -236,7 +236,7 @@ class BusinessConfig:
 
 
 def load_business_config(path: str | None = None) -> BusinessConfig:
-    config_path = path or os.getenv("BUSINESS_CONFIG_PATH", "../config/business.yaml")
+    config_path = path or os.getenv("BUSINESS_CONFIG_PATH", "config/business.yaml")
     resolved = Path(config_path)
     if not resolved.is_absolute():
         resolved = Path(__file__).parent.parent.parent / config_path
