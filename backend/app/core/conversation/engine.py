@@ -148,6 +148,10 @@ class ConversationEngine:
 
         await self._whatsapp.send_typing(message.phone, duration_ms=1500)
         print("SENDING:", message.phone, ai_response[:50], flush=True)
+        if next_state == ConversationState.ORDER_PAYMENT or conversation.state == ConversationState.ORDER_PAYMENT:
+            b = self._business
+            total = order_ctx.total or 0.0
+            ai_response = f"Pague via Pix 💰\nChave {b.pix_tipo_chave.upper()}: {b.pix_chave}\nTitular: {b.pix_titular} ({b.pix_banco})\nValor: R$ {total:.2f}\n\nApos pagar, manda o comprovante aqui pra gente confirmar e separar seu pedido! Tempo estimado: 15 a 30 minutos 👍"
         await self._whatsapp.send_text(message.phone, ai_response)
 
         logger.info(
