@@ -165,28 +165,22 @@ async def check_fraud(
     else:
         result.fail("VALOR_NAO_ENCONTRADO: Não foi possível extrair o valor do comprovante.")
 
-    # CHECK 4: Recebedor errado (vetor #4)
-    if pix_keys:
-        recipient_key = (data.get("recipient_key") or "").strip()
-        if recipient_key and recipient_key not in pix_keys:
-            result.fail(
-                f"CHAVE_PIX_ERRADA: Comprovante para '{recipient_key}', "
-                f"não bate com chaves do FN Mercadinho."
-            )
-
-    if recipient_names:
-        recipient_name = (data.get("recipient_name") or "").lower().strip()
-        if recipient_name:
-            match = any(
-                valid in recipient_name or recipient_name in valid
-                for valid in recipient_names
-            )
-            if not match:
-                result.fail(
-                    f"RECEBEDOR_ERRADO: Nome no comprovante '{recipient_name}' "
-                    f"não corresponde ao FN Mercadinho."
-                )
-
+    # CHECK 4: Recebedor — passa se qualquer evidencia bater
+    import re as _re
+    _rkey = (data.get("recipient_key") or "").strip().lower()
+    _rname = (data.get("recipient_name") or "").strip().lower()
+    _rawt = (data.get("raw_text") or "").lower()
+    _bank = (data.get("bank") or "").lower()
+    _cnpj_d = _re.sub(r"[^0-9]", "", _rkey)
+    _CNPJ = "60747738000149"
+    _ev_nome = any(t in _rname or t in _rawt for t in ["fn merc", "fn mercadinho"])
+    _ev_sumup = any(t in _bank or t in _rawt for t in ["sumup", "sum up"])
+    _ev_cnpj = len(_cnpj_d) >= 4 and _cnpj_d in _CNPJ
+    if not (_ev_nome or _ev_sumup or _ev_cnpj):
+        result.fail(
+            f"RECEBEDOR_ERRADO: sem evidencia do FN Mercadinho. "
+            f"nome='{_rname}' banco='{_bank}' chave='{_rkey}'"
+        )
     # CHECK 5: Data/hora do comprovante (vetor #3 — outra transação antiga)
     payment_dt = _parse_datetime(data.get("date"), data.get("time"))
     if payment_dt:
