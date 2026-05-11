@@ -249,24 +249,7 @@ class ConversationEngine:
                 )
             return False
 
-        now = datetime.now(timezone.utc)
-        try:
-            abertura_h, abertura_m = map(int, self._business.horario_abertura.split(":"))
-            fechamento_h, fechamento_m = map(int, self._business.horario_fechamento.split(":"))
-
-            hora_brasilia = (now.hour - 3) % 24
-            hora_atual = hora_brasilia * 60 + now.minute
-            hora_abre = abertura_h * 60 + abertura_m
-            hora_fecha = fechamento_h * 60 + fechamento_m
-
-            if hora_atual < hora_abre or hora_atual >= hora_fecha:
-                await self._whatsapp.send_text(
-                    message.phone, self._business.msg_fora_horario
-                )
-                return False
-        except Exception:
-            pass
-
+                # atendimento 24/7
         return True
 
     async def _get_or_create_customer(self, message: InboundMessage) -> Customer:

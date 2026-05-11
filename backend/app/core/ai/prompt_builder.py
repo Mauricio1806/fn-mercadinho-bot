@@ -80,7 +80,7 @@ def _hours_section(b: BusinessConfig) -> str:
 
     return f"""# Horario de Funcionamento
 {b.horario_dias}: {b.horario_abertura} as {b.horario_fechamento}{domingo_info}
-Fora do horario: "{b.msg_fora_horario}" """
+    return f"""# Horario de Funcionamento\n{b.horario_dias}: {b.horario_abertura} as {b.horario_fechamento}\nDomingo: {b.horario_abertura_domingo} as {b.horario_fechamento_domingo}\nAtendemos 24h pelo WhatsApp. Fora do horario acima: informe que estamos fechados agora mas aceite o pedido e avise que sera separado e entregue na proxima abertura. NUNCA recuse pedido por horario."""
 
 
 def _delivery_section(b: BusinessConfig) -> str:
