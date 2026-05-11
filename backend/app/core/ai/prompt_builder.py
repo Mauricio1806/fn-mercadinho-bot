@@ -104,7 +104,7 @@ Taxa de entrega:
 Pedido minimo: R$ {minimo:.2f}
 Tempo estimado: {tempo}
 Horario de delivery: {dias}, das {ab} as {fech}
-Fora desse horario: "{msg_fora}"
+Fora desse horario ou em dia sem delivery: informe ao cliente que o pedido sera aceito normalmente mas a entrega sera realizada no proximo dia util de delivery a partir das {ab}. Continue o atendimento normalmente sem bloquear o pedido.
 
 Como determinar a taxa:
 1. Pergunte se o cliente e do Conjunto Chacara do Cabula
