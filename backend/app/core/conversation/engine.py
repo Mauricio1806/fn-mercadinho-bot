@@ -192,45 +192,47 @@ class ConversationEngine:
         """Executada pelo Claude via tool use quando precisa buscar um produto."""
         try:
             from app.database.session import AsyncSessionLocal
+            palavras = [p for p in termo.lower().split() if len(p) >= 3]
+            seen = set()
+            rows = []
+
             async with AsyncSessionLocal() as session:
                 result = await session.execute(
                     text("""
                         SELECT p.name, p.price, pc.name as category
                         FROM products p
                         JOIN product_categories pc ON p.category_id = pc.id
-                        WHERE p.is_available = true
-                          AND p.name ILIKE :q
-                        ORDER BY p.name
-                        LIMIT 15
-                    """),
-                    {"q": f"%{termo}%"}
+                        WHERE p.is_available = true AND p.name ILIKE :q
+                        ORDER BY p.name LIMIT 15
+                    """), {"q": f"%{termo}%"}
                 )
-                rows = result.fetchall()
+                for row in result.fetchall():
+                    if row.name not in seen:
+                        seen.add(row.name)
+                        rows.append(row)
+
+                for palavra in palavras:
+                    if len(rows) >= 15:
+                        break
+                    result = await session.execute(
+                        text("""
+                            SELECT p.name, p.price, pc.name as category
+                            FROM products p
+                            JOIN product_categories pc ON p.category_id = pc.id
+                            WHERE p.is_available = true AND p.name ILIKE :q
+                            ORDER BY p.name LIMIT 10
+                        """), {"q": f"%{palavra}%"}
+                    )
+                    for row in result.fetchall():
+                        if row.name not in seen:
+                            seen.add(row.name)
+                            rows.append(row)
 
             if not rows:
-                # Tenta busca mais ampla dividindo o termo em palavras
-                palavras = termo.split()
-                if len(palavras) > 1:
-                    async with AsyncSessionLocal() as session:
-                        result = await session.execute(
-                            text("""
-                                SELECT p.name, p.price, pc.name as category
-                                FROM products p
-                                JOIN product_categories pc ON p.category_id = pc.id
-                                WHERE p.is_available = true
-                                  AND (p.name ILIKE :q1 OR p.name ILIKE :q2)
-                                ORDER BY p.name
-                                LIMIT 15
-                            """),
-                            {"q1": f"%{palavras[0]}%", "q2": f"%{palavras[1]}%"}
-                        )
-                        rows = result.fetchall()
-
-            if not rows:
-                return f"Nenhum produto encontrado para '{termo}'. Verifique se o nome esta correto ou tente um termo diferente."
+                return f"Nenhum produto encontrado para '{termo}'. Tente um termo diferente."
 
             lines = [f"Produtos encontrados para '{termo}':"]
-            for row in rows:
+            for row in rows[:15]:
                 lines.append(f"- {row.name}: R$ {float(row.price):.2f} ({row.category})")
             return "\n".join(lines)
 
@@ -238,7 +240,6 @@ class ConversationEngine:
             logger.error(f"Erro ao buscar produtos ('{termo}'): {e}")
             return f"Erro temporario ao buscar '{termo}'. Tente novamente."
 
-    # ── Helpers ────────────────────────────────────────────────────────────────
 
     async def _is_allowed(self, message: InboundMessage) -> bool:
         if not message.is_text():
