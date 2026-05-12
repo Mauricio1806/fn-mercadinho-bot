@@ -420,6 +420,12 @@ class ConversationEngine:
             except Exception:
                 pass
 
+        order_ctx = OrderContext.from_json(conversation.context_json)
+        if not order_ctx.order_id and order_ctx.items:
+            order_ctx = await self._finalize_order(customer, order_ctx)
+            conversation.context_json = order_ctx.to_json()
+            await self._db.flush()
+
         await self._whatsapp.send_typing(message.phone, duration_ms=3000)
 
         validation = await validate_pix_receipt(
