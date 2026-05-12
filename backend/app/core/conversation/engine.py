@@ -117,8 +117,8 @@ class ConversationEngine:
         )
 
         if (
-            next_state == ConversationState.ORDER_PAYMENT
-            and conversation.state != ConversationState.ORDER_PAYMENT
+            next_state in (ConversationState.ORDER_PAYMENT, ConversationState.PAYMENT_RECEIPT, ConversationState.CLOSED)
+            and conversation.state not in (ConversationState.ORDER_PAYMENT, ConversationState.PAYMENT_RECEIPT, ConversationState.CLOSED)
             and not order_ctx.order_id
             and order_ctx.items
         ):
