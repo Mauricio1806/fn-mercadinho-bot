@@ -320,7 +320,7 @@ class ConversationEngine:
         ai_response: str,
         user_message: str,
     ) -> OrderContext:
-        if state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM):
+        if state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM, ConversationState.ORDER_DELIVERY, ConversationState.ORDER_PAYMENT):
             parsed_items = parse_items_from_claude(ai_response)
             if parsed_items:
                 ctx.items = parsed_items
