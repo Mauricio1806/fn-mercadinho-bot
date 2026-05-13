@@ -151,16 +151,21 @@ def _state_instructions(state: ConversationState, b: BusinessConfig) -> str:
 
     instructions = {
         ConversationState.GREETING: f"""# Agora: Boas-vindas
-Envie a saudacao e apresente as opcoes. Seja curto e sem formatacao markdown:
+ENVIE EXATAMENTE este texto, palavra por palavra, sem aspas, sem alterar nada, sem inventar:
 
-"{b.saudacao}
+{b.saudacao}
 O que posso fazer por voce?
 1 Fazer um pedido
 2 Informacoes de entrega
 3 Horario de funcionamento
-4 Outra duvida"
+4 Outra duvida
 
-Aguarde o cliente responder.""",
+REGRAS ABSOLUTAS:
+- NUNCA mude essa saudacao
+- NUNCA omita as 4 opcoes numeradas
+- NUNCA pergunte "Quer fazer um pedido ou tem alguma duvida?" — use SOMENTE o texto acima
+- NUNCA adicione emojis extras alem dos que ja estao no texto
+- Aguarde o cliente responder com 1, 2, 3, 4 ou texto livre""",
 
         ConversationState.MAIN_MENU: """# Agora: Menu
 Interprete a resposta do cliente:
