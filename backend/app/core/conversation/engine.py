@@ -90,6 +90,36 @@ class ConversationEngine:
             )
             return
 
+        # GREETING hardcoded — Claude ignora prompt, entao mandamos o texto fixo direto
+        if conversation.state == ConversationState.GREETING:
+            saudacao_text = (
+                f"{self._business.saudacao}\n"
+                "O que posso fazer por voce?\n"
+                "1 Fazer um pedido\n"
+                "2 Informacoes de entrega\n"
+                "3 Horario de funcionamento\n"
+                "4 Outra duvida"
+            )
+            self._db.add(Message(
+                conversation_id=conversation.id,
+                direction=MessageDirection.INBOUND,
+                message_type=MessageType.TEXT,
+                content=message.text,
+                whatsapp_message_id=message.message_id,
+                is_ai_generated=False,
+            ))
+            self._db.add(Message(
+                conversation_id=conversation.id,
+                direction=MessageDirection.OUTBOUND,
+                message_type=MessageType.TEXT,
+                content=saudacao_text,
+                is_ai_generated=False,
+                tokens_used=0,
+            ))
+            await self._update_conversation_state(conversation, ConversationState.MAIN_MENU)
+            await self._whatsapp.send_text(message.phone, saudacao_text)
+            return
+
         order_ctx = OrderContext.from_json(conversation.context_json)
         history = self._build_history(conversation)
         system_prompt = build_system_prompt(conversation.state, self._business)
