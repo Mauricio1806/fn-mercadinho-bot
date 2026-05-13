@@ -211,8 +211,9 @@ class ConversationEngine:
                         seen.add(row.name)
                         rows.append(row)
 
-                for palavra in palavras:
-                    if len(rows) >= 15:
+                tokens = [p for p in termo.lower().split() if len(p) >= 3]
+                for token in tokens:
+                    if len(rows) >= 20:
                         break
                     result = await session.execute(
                         text("""
@@ -221,7 +222,24 @@ class ConversationEngine:
                             JOIN product_categories pc ON p.category_id = pc.id
                             WHERE p.is_available = true AND p.name ILIKE :q
                             ORDER BY p.name LIMIT 10
-                        """), {"q": f"%{palavra}%"}
+                        """), {"q": f"%{token}%"}
+                    )
+                    for row in result.fetchall():
+                        if row.name not in seen:
+                            seen.add(row.name)
+                            rows.append(row)
+
+                for token in tokens:
+                    if len(rows) >= 20:
+                        break
+                    result = await session.execute(
+                        text("""
+                            SELECT p.name, p.price, pc.name as category
+                            FROM products p
+                            JOIN product_categories pc ON p.category_id = pc.id
+                            WHERE p.is_available = true AND p.name ILIKE :q
+                            ORDER BY p.name LIMIT 5
+                        """), {"q": f"{token[:4]}%"}
                     )
                     for row in result.fetchall():
                         if row.name not in seen:

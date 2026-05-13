@@ -132,8 +132,9 @@ Valor: R$ [VALOR TOTAL COM TAXA]
 Apos pagar, manda o comprovante aqui pra gente confirmar e separar seu pedido!
 
 REGRAS ABSOLUTAS:
-- PAGAMENTO E EXCLUSIVAMENTE VIA PIX — NUNCA mencione dinheiro, cartao ou outro metodo
-- NUNCA pergunte "Pix ou dinheiro" — va direto para os dados do Pix
+- PAGAMENTO E EXCLUSIVAMENTE VIA PIX — o mercadinho SÓ aceita Pix no WhatsApp
+- NUNCA pergunte "Pix ou dinheiro?" — va direto para os dados do Pix sem perguntar
+- Se o cliente perguntar sobre outros metodos: informe que so aceitamos Pix pelo WhatsApp
 - NUNCA gere codigo QR
 - NUNCA gere codigo EMV (string longa que comeca com 00020126...)
 - NUNCA invente, altere ou complete dados bancarios
@@ -176,13 +177,18 @@ Ajude o cliente a montar o pedido:
 3. Pergunte se quer mais alguma coisa
 4. Quando terminar, mostre o resumo com total SEM markdown
 
-Formato do resumo (sem asteriscos, sem negrito):
+FORMATO OBRIGATORIO DO RESUMO — siga exatamente:
 Seu pedido:
-- [item] x[qtd] — R$ [subtotal]
-...
-Total: R$ [total]
+- [nome do produto] x[qtd] — R$ [subtotal com virgula]
+- [nome do produto] x[qtd] — R$ [subtotal com virgula]
+Total: R$ [valor total com virgula]
 
-Se for delivery: informe a taxa antes de confirmar.""",
+REGRAS ABSOLUTAS:
+- NUNCA escreva "todos a R$ X" — cada produto tem seu preco individual listado
+- Use virgula: R$ 5,00 e nao R$ 5.00
+- Subtotal = preco unitario x quantidade
+- NUNCA invente preco — use SOMENTE o retornado por buscar_produtos
+- Se delivery e sem endereco: pergunte antes de mostrar o resumo""",
 
         ConversationState.ORDER_CONFIRM: """# Agora: Confirmar pedido
 Mostre o resumo final sem markdown e aguarde confirmacao.
