@@ -427,6 +427,7 @@ class ConversationEngine:
             conversation.context_json = order_ctx.to_json()
             await self._db.flush()
 
+        print(f"RECEIPT_CTX: order_id={order_ctx.order_id} total={order_ctx.total} items={order_ctx.items} ctx_json={conversation.context_json[:200]}", flush=True)
         await self._whatsapp.send_typing(message.phone, duration_ms=3000)
 
         validation = await validate_pix_receipt(
