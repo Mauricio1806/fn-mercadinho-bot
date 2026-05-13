@@ -442,9 +442,17 @@ class ConversationEngine:
         conversation: Conversation,
     ) -> None:
         order_ctx = OrderContext.from_json(conversation.context_json)
+
+        # Se nao tem order ainda mas tem itens — cria o order agora
+        if not order_ctx.order_id and order_ctx.items:
+            order_ctx = await self._finalize_order(customer, order_ctx)
+            conversation.context_json = order_ctx.to_json()
+            await self._db.flush()
+
         expected_total = order_ctx.total or 0.0
-        # Se total zerado, busca do ultimo pedido do cliente no banco
-        if not expected_total and order_ctx.order_id:
+
+        # Fallback 1: busca do order salvo
+        if expected_total <= 0 and order_ctx.order_id:
             from sqlalchemy import select as _select
             import uuid as _uuid
             from app.models.order import Order as _Order
@@ -456,11 +464,28 @@ class ConversationEngine:
             except Exception:
                 pass
 
-        order_ctx = OrderContext.from_json(conversation.context_json)
-        if not order_ctx.order_id and order_ctx.items:
-            order_ctx = await self._finalize_order(customer, order_ctx)
-            conversation.context_json = order_ctx.to_json()
-            await self._db.flush()
+        # Fallback 2: ultimo order PENDING do cliente
+        if expected_total <= 0:
+            from sqlalchemy import select as _select
+            from app.models.order import Order as _Order, OrderStatus as _OS
+            try:
+                _r = await self._db.execute(
+                    _select(_Order)
+                    .where(_Order.customer_id == customer.id)
+                    .where(_Order.status == _OS.PENDING)
+                    .order_by(_Order.created_at.desc())
+                    .limit(1)
+                )
+                _o = _r.scalar_one_or_none()
+                if _o:
+                    expected_total = float(_o.total_amount)
+                    order_ctx.order_id = str(_o.id)
+                    conversation.context_json = order_ctx.to_json()
+                    await self._db.flush()
+            except Exception as _e:
+                print(f"FALLBACK_ORDER erro: {_e}", flush=True)
+
+        print(f"RECEIPT_EXPECTED_TOTAL: {expected_total} order_id={order_ctx.order_id}", flush=True)
 
         print(f"RECEIPT_CTX: order_id={order_ctx.order_id} total={order_ctx.total} items={order_ctx.items} ctx_json={conversation.context_json[:200]}", flush=True)
         import asyncio; await asyncio.sleep(2)

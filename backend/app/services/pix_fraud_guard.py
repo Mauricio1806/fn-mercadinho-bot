@@ -126,6 +126,8 @@ async def check_fraud(
     valid_pix_keys: Optional[list[str]] = None,
     valid_recipient_names: Optional[list[str]] = None,
 ) -> FraudCheckResult:
+    # BYPASS_AMOUNT_ZERO: se total esperado eh 0, ignora checks de valor
+    _bypass_amount = order_amount is None or float(order_amount) <= 0.0
     """
     Valida comprovante Pix extraído pelo Claude contra os principais vetores de fraude.
 

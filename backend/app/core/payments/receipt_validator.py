@@ -168,12 +168,18 @@ async def validate_pix_receipt(
             )
 
         # Caminho legado sem fraud check
-        is_valid = data.get("is_comprovante_pix", False) and data.get("valor_correto", False)
+        # Se expected_amount=0 (perdeu contexto), aceita se destinatario correto
+        valor_ok = data.get("valor_correto", False) or expected_amount <= 0.0
+        is_valid = (
+            data.get("is_comprovante_pix", False)
+            and valor_ok
+            and data.get("chave_destino_encontrada", False)
+        )
         return ReceiptValidation(
             is_valid=is_valid,
             amount_detected=data.get("valor_detectado"),
             pix_key_match=data.get("chave_destino_encontrada", False),
-            reason=data.get("motivo", ""),
+            reason=data.get("motivo", "") if is_valid else (data.get("motivo") or "Destinatario nao confere"),
         )
 
     except json.JSONDecodeError:

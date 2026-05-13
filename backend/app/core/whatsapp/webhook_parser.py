@@ -54,3 +54,6 @@ def parse_whatsapp_message(data: dict) -> Optional[InboundMessage]:
     except Exception as e:
         logger.error(f"Erro ao parsear webhook: {e}", exc_info=True)
         return None
+
+# alias de compatibilidade
+parse_webhook = parse_whatsapp_message
