@@ -143,7 +143,7 @@ class ConversationEngine:
             tokens_used=tokens,
         )
 
-        await self._whatsapp.send_typing(message.phone, duration_ms=1500)
+        import asyncio; await asyncio.sleep(1)
         print("SENDING:", message.phone, ai_response[:50], flush=True)
 
         # Se entrou em ORDER_PAYMENT agora, envia Pix automaticamente — ignora resposta do Claude
@@ -199,9 +199,8 @@ class ConversationEngine:
             async with AsyncSessionLocal() as session:
                 result = await session.execute(
                     text("""
-                        SELECT p.name, p.price, pc.name as category
+                        SELECT p.name, p.price
                         FROM products p
-                        JOIN product_categories pc ON p.category_id = pc.id
                         WHERE p.is_available = true AND p.name ILIKE :q
                         ORDER BY p.name LIMIT 15
                     """), {"q": f"%{termo}%"}
@@ -217,9 +216,8 @@ class ConversationEngine:
                         break
                     result = await session.execute(
                         text("""
-                            SELECT p.name, p.price, pc.name as category
+                            SELECT p.name, p.price
                             FROM products p
-                            JOIN product_categories pc ON p.category_id = pc.id
                             WHERE p.is_available = true AND p.name ILIKE :q
                             ORDER BY p.name LIMIT 10
                         """), {"q": f"%{token}%"}
@@ -234,9 +232,8 @@ class ConversationEngine:
                         break
                     result = await session.execute(
                         text("""
-                            SELECT p.name, p.price, pc.name as category
+                            SELECT p.name, p.price
                             FROM products p
-                            JOIN product_categories pc ON p.category_id = pc.id
                             WHERE p.is_available = true AND p.name ILIKE :q
                             ORDER BY p.name LIMIT 5
                         """), {"q": f"{token[:4]}%"}
@@ -251,7 +248,7 @@ class ConversationEngine:
 
             lines = [f"Produtos encontrados para '{termo}':"]
             for row in rows[:15]:
-                lines.append(f"- {row.name}: R$ {float(row.price):.2f} ({row.category})")
+                lines.append(f"- {row.name}: R$ {float(row.price):.2f}")
             return "\n".join(lines)
 
         except Exception as e:
@@ -466,7 +463,7 @@ class ConversationEngine:
             await self._db.flush()
 
         print(f"RECEIPT_CTX: order_id={order_ctx.order_id} total={order_ctx.total} items={order_ctx.items} ctx_json={conversation.context_json[:200]}", flush=True)
-        await self._whatsapp.send_typing(message.phone, duration_ms=3000)
+        import asyncio; await asyncio.sleep(2)
 
         validation = await validate_pix_receipt(
             image_url=message.image_url,
