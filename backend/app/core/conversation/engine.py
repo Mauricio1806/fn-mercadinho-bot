@@ -320,9 +320,8 @@ class ConversationEngine:
         ai_response: str,
         user_message: str,
     ) -> OrderContext:
-        if state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM, ConversationState.ORDER_DELIVERY, ConversationState.ORDER_PAYMENT):
+        if state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM):
             parsed_items = parse_items_from_claude(ai_response)
-            print(f"PARSER: state={state.value} items={parsed_items} response_preview={repr(ai_response[:200])}", flush=True)
             if parsed_items:
                 ctx.items = parsed_items
                 ctx.recalculate_total()
@@ -339,6 +338,9 @@ class ConversationEngine:
                 ctx.building_block = block
             if apt:
                 ctx.apartment = apt
+            total = extract_order_total(ai_response)
+            if total and total > 0:
+                ctx.total = total
 
         return ctx
 
