@@ -19,12 +19,12 @@ def parse_items_from_claude(ai_response: str) -> list[OrderItemContext]:
 
     # Formato 1: bullet + nome + xN + preco
     p1 = re.compile(
-        r"^\s*[•\-]\s*(.+?)\s+x(\d+)\s*[—\-–]\s*R\$\s*([\d]+[.,][\d]{2})",
+        r"^\s*[•\-]\s*(.+?)\s+x(\d+)\s*[—\-–·:]\s*R\$\s*([\d]+[.,][\d]{2})",
         re.IGNORECASE | re.MULTILINE,
     )
     # Formato 2: Nx nome + preco (ex: "1x Coca-Cola — R$ 5,00")
     p2 = re.compile(
-        r"^\s*(\d+)x\s*(.+?)\s*[—\-–]\s*R\$\s*([\d]+[.,][\d]{2})",
+        r"^\s*(\d+)x\s*(.+?)\s*[—\-–·:]\s*R\$\s*([\d]+[.,][\d]{2})",
         re.IGNORECASE | re.MULTILINE,
     )
 
