@@ -487,6 +487,15 @@ class ConversationEngine:
 
         print(f"RECEIPT_EXPECTED_TOTAL: {expected_total} order_id={order_ctx.order_id}", flush=True)
 
+        # Sem pedido fechado: rejeita o comprovante e orienta o cliente
+        if expected_total <= 0 and not order_ctx.order_id:
+            await self._whatsapp.send_text(
+                message.phone,
+                "Antes de mandar comprovante, preciso fechar seu pedido. Me diga o que voce quer comprar."
+            )
+            await self._update_conversation_state(conversation, ConversationState.ORDER_ITEMS)
+            return
+
         print(f"RECEIPT_CTX: order_id={order_ctx.order_id} total={order_ctx.total} items={order_ctx.items} ctx_json={conversation.context_json[:200]}", flush=True)
         import asyncio; await asyncio.sleep(2)
 

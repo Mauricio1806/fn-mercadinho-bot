@@ -77,6 +77,7 @@ Verifique:
 1. É realmente um comprovante de transação PIX (não uma tela de agendamento, saldo ou outra coisa)?
 2. O valor pago bate com R$ {expected_amount:.2f}?
 3. O destinatário ou chave PIX corresponde ao mercadinho? (CNPJ pode aparecer mascarado ex: 60.***.***/0001-4* — considere válido se os dígitos visíveis forem compatíveis ou se o nome/banco bater)
+4. Qual a data da transação no comprovante? Formato YYYY-MM-DD.
 
 Responda SOMENTE com JSON válido (sem markdown, sem texto extra):
 {{
@@ -84,6 +85,7 @@ Responda SOMENTE com JSON válido (sem markdown, sem texto extra):
   "valor_detectado": <número decimal ou null>,
   "valor_correto": true|false,
   "chave_destino_encontrada": true|false,
+  "data_transacao": "<YYYY-MM-DD ou null>",
   "motivo": "<explicação em 1 frase>"
 }}
 
