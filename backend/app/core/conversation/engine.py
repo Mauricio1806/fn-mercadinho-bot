@@ -338,11 +338,20 @@ class ConversationEngine:
         ai_response: str,
         user_message: str,
     ) -> OrderContext:
-        if state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM):
+        # Parseia itens em qualquer estado de pedido ativo
+        if state in (
+            ConversationState.ORDER_ITEMS,
+            ConversationState.ORDER_CONFIRM,
+            ConversationState.ORDER_DELIVERY,
+            ConversationState.ORDER_PAYMENT,
+        ):
             parsed_items = parse_items_from_claude(ai_response)
             if parsed_items:
                 ctx.items = parsed_items
                 ctx.recalculate_total()
+            elif state in (ConversationState.ORDER_ITEMS, ConversationState.ORDER_CONFIRM):
+                # Tenta recuperar itens do histórico via resposta anterior — mantém o que já tem
+                pass
 
             total = extract_order_total(ai_response)
             if total and total > 0:
@@ -350,7 +359,7 @@ class ConversationEngine:
 
             ctx.delivery_type = parse_delivery_type(user_message)
 
-        elif state == ConversationState.ORDER_DELIVERY:
+        if state == ConversationState.ORDER_DELIVERY:
             block, apt = extract_block_and_apartment(user_message)
             if block:
                 ctx.building_block = block
@@ -366,6 +375,14 @@ class ConversationEngine:
         self, customer: Customer, order_ctx: OrderContext
     ) -> OrderContext:
         try:
+            print(f"FINALIZE_ORDER: items={len(order_ctx.items)} total={order_ctx.total} delivery={order_ctx.delivery_type}", flush=True)
+            for i in order_ctx.items:
+                print(f"  ITEM: {i.name} qty={i.qty} unit={i.unit_price} sub={i.subtotal}", flush=True)
+
+            if not order_ctx.items:
+                logger.error("FINALIZE_ORDER chamado com items vazio — abortando criacao do Order")
+                return order_ctx
+
             if order_ctx.delivery_type == "delivery" and order_ctx.building_block:
                 validation = validate_delivery(
                     order_ctx.building_block,
@@ -378,6 +395,7 @@ class ConversationEngine:
             service = OrderService(self._db)
             order = await service.create_from_context(customer, order_ctx)
             order_ctx.order_id = str(order.id)
+            print(f"ORDER_CRIADO: id={order.id} total={order.total_amount}", flush=True)
 
             await notify_new_order(
                 order=order,
