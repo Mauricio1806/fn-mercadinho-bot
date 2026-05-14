@@ -77,10 +77,16 @@ async def receive_webhook(
     try:
         engine = ConversationEngine(db=db)
         await engine.handle(inbound)
+        await db.commit()
+        print("DB_COMMIT_OK", flush=True)
     except Exception as e:
         import traceback
         print("ERRO WEBHOOK:", e, flush=True)
         traceback.print_exc()
+        try:
+            await db.rollback()
+        except Exception:
+            pass
         # Retorna 200 mesmo com erro — não queremos que a Evolution API faça retry spam
 
     return {"status": "processed"}
