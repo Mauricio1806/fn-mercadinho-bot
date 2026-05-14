@@ -95,6 +95,6 @@ from sqlalchemy import text as _reset_text
 
 @router.get("/_reset_states_xyz123")
 async def _reset_states_xyz123(db: AsyncSession = Depends(get_db)):
-    r = await db.execute(_reset_text("UPDATE conversations SET state = 'greeting'"))
+    r = await db.execute(_reset_text("UPDATE conversations SET state = 'GREETING'"))
     await db.commit()
     return {"rows_updated": r.rowcount}
