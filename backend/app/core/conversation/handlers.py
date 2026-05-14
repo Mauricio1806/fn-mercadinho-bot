@@ -79,7 +79,10 @@ def next_state_from_response(
             return ConversationState.PAYMENT_RECEIPT
 
         case ConversationState.PAYMENT_RECEIPT:
-            # Estado gerenciado pelo engine (imagem recebida) — texto do cliente mantém estado
+            # Se chegou texto saudacao/inicio, sai do estado de comprovante
+            if any(k in user_lower for k in ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "menu", "pedir", "pedido", "quero"]):
+                return ConversationState.GREETING
+            # Senao mantem aguardando comprovante (imagem)
             return ConversationState.PAYMENT_RECEIPT
 
         case ConversationState.DELIVERY_INFO:
