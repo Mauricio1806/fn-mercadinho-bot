@@ -3,7 +3,7 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, Text, String
+from sqlalchemy import ForeignKey, Text, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -53,7 +53,7 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
         index=True,
     )
     state: Mapped[ConversationState] = mapped_column(
-        Enum(ConversationState),
+        String(50),
         default=ConversationState.GREETING,
         nullable=False,
     )
