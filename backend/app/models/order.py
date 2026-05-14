@@ -1,83 +1,32 @@
-"""Models de pedido e itens do pedido."""
-
-import enum
-from typing import TYPE_CHECKING
-
-from sqlalchemy import Enum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Column, String, DateTime, Numeric, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import relationship
+from datetime import datetime
+import uuid
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
-
-if TYPE_CHECKING:
-    from app.models.customer import Customer
-    from app.models.product import Product
+from app.database.base import Base
 
 
-class OrderStatus(str, enum.Enum):
-    """Status possíveis de um pedido."""
+class OrderStatus:
+    PENDING = "PENDING"
+    AWAITING_PAYMENT = "AWAITING_PAYMENT"
+    PAID = "PAID"
+    PREPARING = "PREPARING"
+    OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY"
+    DELIVERED = "DELIVERED"
+    CANCELLED = "CANCELLED"
+    ALL = {PENDING, AWAITING_PAYMENT, PAID, PREPARING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED}
 
-    PENDING = "pending"                 # Aguardando comprovante PIX
-    PAYMENT_CONFIRMED = "payment_confirmed"  # Comprovante validado — venda efetivada
-    PREPARING = "preparing"             # Em preparo pelo funcionário
-    READY = "ready"                     # Pronto para entrega
-    DELIVERING = "delivering"           # Em rota de entrega
-    DELIVERED = "delivered"             # Entregue
-    CANCELLED = "cancelled"             # Cancelado
 
-
-class Order(UUIDMixin, TimestampMixin, Base):
-    """Pedido realizado por um cliente."""
-
+class Order(Base):
     __tablename__ = "orders"
 
-    customer_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False
-    )
-    status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False, index=True
-    )
-    total_amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    delivery_building_block: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    delivery_apartment: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    delivery_fee: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0, nullable=False)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    pix_notified: Mapped[bool] = mapped_column(default=False, nullable=False)
-    owner_notified: Mapped[bool] = mapped_column(default=False, nullable=False)
-    pix_confirmed: Mapped[bool] = mapped_column(default=False, nullable=False)
-    commission_amount: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False)
+    status = Column(String(50), nullable=False, default="PENDING", index=True)
+    total = Column(Numeric(10, 2), nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    customer: Mapped["Customer"] = relationship(back_populates="orders")
-    items: Mapped[list["OrderItem"]] = relationship(
-        back_populates="order", cascade="all, delete-orphan"
-    )
-
-    def __repr__(self) -> str:
-        return f"<Order id={self.id} status={self.status} total={self.total_amount}>"
-
-
-class OrderItem(UUIDMixin, Base):
-    """Item individual de um pedido."""
-
-    __tablename__ = "order_items"
-
-    order_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False
-    )
-    product_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("products.id"), nullable=False
-    )
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
-    unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    product_name: Mapped[str] = mapped_column(String(200), nullable=False)
-
-    order: Mapped[Order] = relationship(back_populates="items")
-    product: Mapped["Product"] = relationship(back_populates="order_items")
-
-    @property
-    def subtotal(self) -> float:
-        """Subtotal deste item (quantidade × preço unitário)."""
-        return float(self.quantity) * float(self.unit_price)
-
-    def __repr__(self) -> str:
-        return f"<OrderItem product={self.product_name} qty={self.quantity}>"
+    customer = relationship("Customer", back_populates="orders")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
