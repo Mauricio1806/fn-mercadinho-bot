@@ -60,7 +60,7 @@ def validate_response(
     if issues:
         logger.warning(
             "Checkpoint | estado=%s | %d problema(s): %s",
-            state.value,
+            state,
             len(issues),
             " | ".join(issues),
         )
@@ -140,7 +140,7 @@ def _check_state_coherence(text: str, state: ConversationState) -> list[str]:
 
     if state not in _ORDER_STATES and re.search(r"R\$\s*\d", text):
         if state not in (ConversationState.MAIN_MENU, ConversationState.FREE_CHAT):
-            issues.append(f"ESTADO: preço mencionado no estado inesperado={state.value}")
+            issues.append(f"ESTADO: preço mencionado no estado inesperado={state}")
 
     return issues
 

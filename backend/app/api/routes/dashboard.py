@@ -135,7 +135,7 @@ async def get_confirmed_sales(
             "total": float(o.total_amount),
             "delivery_fee": float(o.delivery_fee),
             "commission": float(o.commission_amount or 0),
-            "status": o.status.value,
+            "status": o.status,
             "delivery": (
                 f"Bloco {o.delivery_building_block}, Apto {o.delivery_apartment}"
                 if o.delivery_building_block
