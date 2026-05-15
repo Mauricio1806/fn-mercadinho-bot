@@ -21,7 +21,7 @@ def parse_items_from_claude(ai_response: str) -> list[OrderItemContext]:
 
     # Formato: • Nome x2 — R$ 20,00  |  - Nome x2 — R$ 20,00
     for m in re.finditer(
-        r"^[ \t]*[•\-]\s*(.+?)\s+[xX](\d+)\s*[—\-–·:]\s*R\$\s*([\d]+[.,][\d]{2})",
+        r"^[ \t]*[•\-\*]\s*(.+?)\s+[xX](\d+)\s*[—\-–·:]\s*R\$\s*([\d]+[.,][\d]{2})",
         ai_response, re.IGNORECASE | re.MULTILINE
     ):
         try:
@@ -31,7 +31,7 @@ def parse_items_from_claude(ai_response: str) -> list[OrderItemContext]:
 
     # Formato: • Nome (x2) — R$ 20,00
     for m in re.finditer(
-        r"^[ \t]*[•\-]\s*(.+?)\s+\([xX](\d+)\)\s*[—\-–·:]\s*R\$\s*([\d]+[.,][\d]{2})",
+        r"^[ \t]*[•\-\*]\s*(.+?)\s+\([xX](\d+)\)\s*[—\-–·:]\s*R\$\s*([\d]+[.,][\d]{2})",
         ai_response, re.IGNORECASE | re.MULTILINE
     ):
         try:
@@ -51,7 +51,7 @@ def parse_items_from_claude(ai_response: str) -> list[OrderItemContext]:
 
     # Formato sem quantidade: • Nome — R$ 10,00  (qty=1)
     for m in re.finditer(
-        r"^[ \t]*[•\-]\s*(.+?)\s*[—\-–]\s*R\$\s*([\d]+[.,][\d]{2})",
+        r"^[ \t]*[•\-\*]\s*(.+?)\s*[—\-–]\s*R\$\s*([\d]+[.,][\d]{2})",
         ai_response, re.IGNORECASE | re.MULTILINE
     ):
         name = m.group(1).strip()
