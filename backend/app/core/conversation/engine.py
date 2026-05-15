@@ -68,7 +68,7 @@ class ConversationEngine:
         conversation = await self._get_or_create_conversation(customer)
 
         # Imagem ou PDF em estado de pagamento → comprovante PIX
-        print(f"MEDIA CHECK: image_url={bool(message.image_url)} type={message.message_type.value} state={conversation.state.value}", flush=True)
+        print(f"MEDIA CHECK: image_url={bool(message.image_url)} type={message.message_type.value} state={conversation.state}", flush=True)
         if (
             message.image_url
             and message.message_type.value in ("image", "document")
