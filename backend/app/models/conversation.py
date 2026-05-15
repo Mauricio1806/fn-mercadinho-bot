@@ -52,7 +52,7 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    state: Mapped[ConversationState] = mapped_column(
+    state: Mapped[str] = mapped_column(
         String(50),
         default=ConversationState.GREETING,
         nullable=False,
