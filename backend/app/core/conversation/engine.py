@@ -118,13 +118,17 @@ class ConversationEngine:
             conversation.state, ai_response, message.text
         )
 
+        print(f"FINALIZE_CHECK: cur={conversation.state} next={next_state} order_id={order_ctx.order_id} items_count={len(order_ctx.items)} total={order_ctx.total}", flush=True)
         if (
             next_state in (ConversationState.ORDER_PAYMENT, ConversationState.PAYMENT_RECEIPT, ConversationState.CLOSED)
             and conversation.state not in (ConversationState.ORDER_PAYMENT, ConversationState.PAYMENT_RECEIPT, ConversationState.CLOSED)
             and not order_ctx.order_id
             and order_ctx.items
         ):
+            print(f"FINALIZE_TRIGGER: criando order", flush=True)
             order_ctx = await self._finalize_order(customer, order_ctx)
+        else:
+            print(f"FINALIZE_SKIP: condicao falhou", flush=True)
 
         await self._save_messages(
             conversation=conversation,
