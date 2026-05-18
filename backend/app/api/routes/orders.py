@@ -52,23 +52,18 @@ async def get_order(
     return order
 
 
-@router.patch("/{order_id}/status", response_model=OrderResponse)
-async def update_order_status(
-    order_id: uuid.UUID,
-    body: OrderStatusUpdate,
-    db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
-) -> Order:
-    result = await db.execute(
-        select(Order).options(selectinload(Order.items)).where(Order.id == order_id)
-    )
-    order = result.scalar_one_or_none()
-
-    if not order:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido não encontrado.")
-
-    order.status = body.status
+@router.patch("/{order_id}/status")
+async def update_status(order_id: UUID, new_status: str, db: AsyncSession):
+    order = await db.get(Order, order_id)
+    old_status = order.status
+    order.status = new_status
     await db.commit()
+    
+    # Notifica cliente baseado na transição
+    customer = await db.get(Customer, order.customer_id)
+    msg = build_status_message(old_status, new_status, order)
+    if msg:
+        await whatsapp.send_text(customer.phone, msg)
 
     # Recarrega com eager load dos itens
     result = await db.execute(
