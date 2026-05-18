@@ -10,8 +10,8 @@ import re
 from dataclasses import dataclass, field
 
 from app.config import BusinessConfig
-from app.platform.orders.context import OrderContext
-from app.platform.orders.delivery_validator import validate_delivery
+from app.core.orders.context import OrderContext
+from app.core.orders.delivery_validator import validate_delivery
 from app.models.conversation import ConversationState
 
 logger = logging.getLogger(__name__)

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Text, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -45,7 +44,6 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "conversations"
 
-    tenant_id: Mapped[str] = mapped_column(PGUUID(as_uuid=True), nullable=True, index=True)
     customer_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False
     )
