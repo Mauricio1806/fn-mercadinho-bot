@@ -54,7 +54,7 @@ async def get_order(
 
 
 @router.patch("/{order_id}/status")
-async def update_status(order_id: UUID, new_status: str, db: AsyncSession):
+async def update_status(order_id: UUID, new_status: str, db: AsyncSession = Depends(get_db)):
     order = await db.get(Order, order_id)
     old_status = order.status
     order.status = new_status
