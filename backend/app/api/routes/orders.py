@@ -1,6 +1,7 @@
 """Rotas de pedidos (CRUD + atualização de status)."""
 
 import uuid
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
