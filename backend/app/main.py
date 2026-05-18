@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.middleware.tenant_scope import TenantScopeMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_business_config, get_settings

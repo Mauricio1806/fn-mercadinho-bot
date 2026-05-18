@@ -110,6 +110,7 @@ class ConversationEngine:
             history=history,
             user_message=augmented_message,
             product_search_fn=self._search_products,
+            tenant_name=self._tenant.name if self._tenant else "do cliente",
         )
 
         validation = validate_response(ai_response, conversation.state, order_ctx, self._business)

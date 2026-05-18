@@ -10,27 +10,30 @@ settings = get_settings()
 MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 1024
 
-TOOLS = [
-    {
-        "name": "buscar_produtos",
-        "description": (
-            "Busca produtos disponíveis no catálogo do FN Mercadinho pelo nome ou termo. "
-            "Use SEMPRE que o cliente mencionar qualquer produto que queira comprar. "
-            "Exemplos: 'arroz', 'leite', 'frango', 'cerveja', 'detergente'. "
-            "Faça uma busca separada para cada produto diferente mencionado."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "termo": {
-                    "type": "string",
-                    "description": "Nome ou parte do nome do produto a buscar. Use termos simples: 'arroz', 'leite integral', 'frango congelado'."
-                }
-            },
-            "required": ["termo"]
+
+def build_tools(tenant_name: str = "do cliente") -> list:
+    """Retorna a lista de tools com o nome do tenant injetado dinamicamente."""
+    return [
+        {
+            "name": "buscar_produtos",
+            "description": (
+                f"Busca produtos disponíveis no catálogo {tenant_name} pelo nome ou termo. "
+                "Use SEMPRE que o cliente mencionar qualquer produto que queira comprar. "
+                "Exemplos: 'arroz', 'leite', 'frango', 'cerveja', 'detergente'. "
+                "Faça uma busca separada para cada produto diferente mencionado."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "termo": {
+                        "type": "string",
+                        "description": "Nome ou parte do nome do produto a buscar. Use termos simples: 'arroz', 'leite integral', 'frango congelado'."
+                    }
+                },
+                "required": ["termo"]
+            }
         }
-    }
-]
+    ]
 
 
 class ClaudeClient:
@@ -45,6 +48,7 @@ class ClaudeClient:
         user_message: str,
         max_tokens: int = MAX_TOKENS,
         product_search_fn=None,
+        tenant_name: str = "do cliente",
     ) -> tuple[str, int]:
         messages = [*history, {"role": "user", "content": user_message}]
         total_tokens = 0
@@ -61,7 +65,7 @@ class ClaudeClient:
                         "cache_control": {"type": "ephemeral"}
                     }],
                     messages=messages,
-                    tools=TOOLS,
+                    tools=build_tools(tenant_name),
                     timeout=30.0,
                 )
                 total_tokens += response.usage.input_tokens + response.usage.output_tokens
