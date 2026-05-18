@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import re
-from app.platform.orders.context import OrderItemContext
+from app.core.orders.context import OrderItemContext
 
 
 def parse_items_from_claude(ai_response: str) -> list[OrderItemContext]:

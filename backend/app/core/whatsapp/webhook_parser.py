@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 from typing import Optional
-from app.platform.whatsapp.types import InboundMessage, WhatsAppMessageType
+from app.core.whatsapp.types import InboundMessage, WhatsAppMessageType
 
 logger = logging.getLogger(__name__)
 

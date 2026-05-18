@@ -6,7 +6,7 @@ import logging
 import os
 
 from app.config import BusinessConfig, get_business_config
-from app.platform.whatsapp.bridge_client import WhatsAppClient, get_whatsapp_client
+from app.core.whatsapp.client import WhatsAppClient, get_whatsapp_client
 from app.models.order import Order
 
 logger = logging.getLogger(__name__)

@@ -29,26 +29,12 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos.")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inativo.")
-    role = getattr(user, "role", "tenant_admin") or "tenant_admin"
-    tenant_id = str(user.tenant_id) if getattr(user, "tenant_id", None) else None
     access_token = create_token(
-        {
-            "sub": str(user.id),
-            "email": user.email,
-            "type": "access",
-            "role": role,
-            "tenant_id": tenant_id,
-        },
+        {"sub": str(user.id), "email": user.email, "type": "access"},
         timedelta(minutes=settings.jwt_access_expire_minutes)
     )
     refresh_token = create_token(
-        {
-            "sub": str(user.id),
-            "email": user.email,
-            "type": "refresh",
-            "role": role,
-            "tenant_id": tenant_id,
-        },
+        {"sub": str(user.id), "email": user.email, "type": "refresh"},
         timedelta(days=settings.jwt_refresh_expire_days)
     )
     return TokenResponse(access_token=access_token, refresh_token=refresh_token, token_type="bearer")

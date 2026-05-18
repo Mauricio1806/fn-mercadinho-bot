@@ -21,9 +21,9 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BusinessConfig, get_business_config
-from app.platform.ai.claude_client import ClaudeClient, get_claude_client
+from app.core.ai.claude_client import ClaudeClient, get_claude_client
 from app.models.pix_receipt_log import PixReceiptLog  # noqa: F401 — registra tabela no Base.metadata
-from app.platform.payments.fraud_guard import (
+from app.services.pix_fraud_guard import (
     FRAUD_RESPONSES,
     RECEIPT_EXTRACTION_PROMPT,
     FraudCheckResult,

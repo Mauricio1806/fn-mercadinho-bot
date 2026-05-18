@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -25,7 +24,6 @@ class Customer(UUIDMixin, TimestampMixin, Base):
     building_block: Mapped[str | None] = mapped_column(String(10), nullable=True)
     apartment: Mapped[str | None] = mapped_column(String(20), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    tenant_id: Mapped[str] = mapped_column(PGUUID(as_uuid=True), nullable=True, index=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     total_orders: Mapped[int] = mapped_column(default=0, nullable=False)
 
