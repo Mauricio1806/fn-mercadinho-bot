@@ -56,6 +56,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
+    # Tenant scope — injeta tenant_id do JWT no ContextVar
+    app.add_middleware(TenantScopeMiddleware)
 
     # Security headers middleware
     @app.middleware("http")
