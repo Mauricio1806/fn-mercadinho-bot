@@ -11,8 +11,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.conversation.engine import ConversationEngine
-from app.core.whatsapp.webhook_parser import parse_whatsapp_message as parse_webhook
+from app.platform.conversation.engine import ConversationEngine
+from app.platform.whatsapp.webhook_parser import parse_whatsapp_message as parse_webhook
 from app.database.session import get_db
 
 router = APIRouter()

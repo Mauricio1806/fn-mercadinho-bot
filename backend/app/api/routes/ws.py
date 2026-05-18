@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
 
 from app.config import get_settings
-from app.core.ws_manager import ws_manager
+from app.platform.ws_manager import ws_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

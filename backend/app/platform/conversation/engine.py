@@ -10,24 +10,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import BusinessConfig, get_business_config
-from app.core.ai.claude_client import ClaudeClient, get_claude_client
-from app.core.ai.prompt_builder import build_system_prompt
-from app.core.ai.response_validator import validate_response
-from app.core.conversation.handlers import (
+from app.platform.ai.claude_client import ClaudeClient, get_claude_client
+from app.platform.ai.prompt_builder import build_system_prompt
+from app.platform.ai.response_validator import validate_response
+from app.platform.conversation.handlers import (
     extract_order_total,
     next_state_from_response,
     trim_history,
 )
-from app.core.notifications.notify_owner import notify_new_order, notify_sale_confirmed
-from app.core.payments.receipt_validator import validate_pix_receipt
-from app.services.pix_fraud_guard import FRAUD_RESPONSES, detect_pressure
-from app.core.orders.context import OrderContext
-from app.core.orders.delivery_validator import extract_block_and_apartment, validate_delivery
-from app.core.orders.parser import parse_delivery_type, parse_items_from_claude
-from app.core.orders.service import OrderService
-from app.core.whatsapp.client import WhatsAppClient, get_whatsapp_client
-from app.core.ws_manager import ws_manager
-from app.core.whatsapp.types import InboundMessage
+from app.platform.notifications.owner_notifier import notify_new_order, notify_sale_confirmed
+from app.platform.payments.receipt_validator import validate_pix_receipt
+from app.platform.payments.fraud_guard import FRAUD_RESPONSES, detect_pressure
+from app.platform.orders.context import OrderContext
+from app.platform.orders.delivery_validator import extract_block_and_apartment, validate_delivery
+from app.platform.orders.parser import parse_delivery_type, parse_items_from_claude
+from app.platform.orders.service import OrderService
+from app.platform.whatsapp.bridge_client import WhatsAppClient, get_whatsapp_client
+from app.platform.ws_manager import ws_manager
+from app.platform.whatsapp.types import InboundMessage
 from app.models.conversation import Conversation, ConversationState, ConversationStatus
 from app.models.customer import Customer
 from app.models.message import Message, MessageDirection, MessageType
