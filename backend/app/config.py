@@ -126,7 +126,7 @@ class BusinessConfig:
 
     @property
     def delivery_pedido_minimo(self) -> float:
-        return float(self._raw.get("delivery", {}).get("pedido_minimo", 15.0))
+        return float(self._raw.get("delivery", {}).get("pedido_minimo", 0.0))
 
     @property
     def delivery_tempo_estimado(self) -> str:
