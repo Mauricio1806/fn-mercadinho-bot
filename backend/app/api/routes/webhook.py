@@ -1,97 +1,62 @@
-"""Webhook da Evolution API — recebe e processa mensagens do WhatsApp."""
-
+"""Webhook — recebe mensagens do bridge e despacha pro ConversationEngine."""
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
-from app.platform.conversation.engine import ConversationEngine
-from app.platform.whatsapp.webhook_parser import parse_whatsapp_message as parse_webhook
 from app.database.session import get_db
+from app.platform.conversation.engine import ConversationEngine
+from app.platform.whatsapp.webhook_parser import parse_whatsapp_message
+from app.tenancy.resolver import resolve_tenant_by_number
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-settings = get_settings()
-
-
-def verify_webhook_signature(body: bytes, signature: str | None) -> bool:
-    """Valida assinatura HMAC do webhook da Evolution API."""
-    if not signature:
-        # Em desenvolvimento, permite sem assinatura
-        return not settings.is_production
-
-    expected = hmac.new(
-        settings.evolution_api_key.encode(),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
-
-    return hmac.compare_digest(expected, signature)
 
 
 @router.post("/")
 async def receive_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    x_hub_signature: str | None = Header(default=None, alias="x-hub-signature-256"),
 ) -> dict[str, str]:
-    """
-    Recebe webhook da Evolution API.
-    Parseia a mensagem e despacha para o ConversationEngine.
-    Retorna 200 imediatamente — processamento é fire-and-forget (sem await bloqueante).
-    """
-    body = await request.body()
-
-    if not verify_webhook_signature(body, x_hub_signature):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Assinatura do webhook inválida.",
-        )
-
     try:
-        import json as _json; payload: dict[str, Any] = _json.loads(body)
+        import json
+        body = await request.body()
+        payload: dict[str, Any] = json.loads(body)
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Payload inválido.",
-        )
+        return {"status": "invalid_payload"}
 
-    event_type = payload.get("event", "unknown")
     print("PAYLOAD RAW:", payload, flush=True)
-    logger.debug("Webhook recebido: event=%s", event_type)
 
-    # Parseia payload para InboundMessage
-    inbound = parse_webhook(payload)
-
+    inbound = parse_whatsapp_message(payload)
     if inbound is None:
-        logger.debug("Evento ignorado (não é mensagem de usuário): %s", event_type)
         return {"status": "ignored"}
 
-    # Processa a mensagem
+    # ── Resolve tenant pelo número que recebeu a mensagem ────────────────────
+    to_number = getattr(inbound, "to_number", None) or payload.get("to_number", "")
+    tenant_ctx = await resolve_tenant_by_number(to_number, db)
+
+    if tenant_ctx is None:
+        # Fallback: tenta resolver pelo número fixo do FN enquanto migração não está completa
+        logger.warning(
+            "Tenant não encontrado para %s — usando fallback FN Mercadinho", to_number
+        )
+        from app.tenancy.resolver import resolve_tenant_by_number as _r
+        tenant_ctx = await _r("557199371599", db)
+
+    if tenant_ctx is None:
+        logger.error("Nenhum tenant disponível — mensagem descartada")
+        return {"status": "tenant_not_found"}
+
+    # ── Dispara engine com contexto do tenant ────────────────────────────────
     try:
-        engine = ConversationEngine(db=db)
+        engine = ConversationEngine(db=db, tenant=tenant_ctx)
         await engine.handle(inbound)
-        await db.commit()
-        print("DB_COMMIT_OK", flush=True)
     except Exception as e:
         import traceback
         print("ERRO WEBHOOK:", e, flush=True)
         traceback.print_exc()
-        try:
-            await db.rollback()
-        except Exception:
-            pass
-        # Retorna 200 mesmo com erro — não queremos que a Evolution API faça retry spam
 
     return {"status": "processed"}
-
-from sqlalchemy import text as _reset_text
-
-# endpoint de reset removido — era so para desenvolvimento
-
