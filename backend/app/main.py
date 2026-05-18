@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.middleware.tenant_scope import TenantScopeMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_business_config, get_settings
@@ -55,6 +56,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
+    # Tenant scope — injeta tenant_id do JWT no ContextVar
+    app.add_middleware(TenantScopeMiddleware)
 
     # Security headers middleware
     @app.middleware("http")
@@ -68,6 +71,7 @@ def create_app() -> FastAPI:
 
     # Rotas
     from app.api.routes.webhook import router as webhook_router
+    from app.api.routes.tenants import router as tenants_router
     from app.api.routes.orders import router as orders_router
     from app.api.routes.products import router as products_router
     from app.api.routes.customers import router as customers_router
@@ -79,6 +83,7 @@ def create_app() -> FastAPI:
 
     app.include_router(webhook_router, prefix="/webhook", tags=["webhook"])
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+    app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
     app.include_router(orders_router, prefix="/api/orders", tags=["orders"])
     app.include_router(products_router, prefix="/api/products", tags=["products"])
     app.include_router(customers_router, prefix="/api/customers", tags=["customers"])
