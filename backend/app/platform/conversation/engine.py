@@ -10,24 +10,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import BusinessConfig, get_business_config
-from app.core.ai.claude_client import ClaudeClient, get_claude_client
-from app.core.ai.prompt_builder import build_system_prompt
-from app.core.ai.response_validator import validate_response
-from app.core.conversation.handlers import (
+from app.tenancy.context import TenantContext
+from app.platform.ai.claude_client import ClaudeClient, get_claude_client
+from app.platform.ai.prompt_builder import build_system_prompt
+from app.platform.ai.response_validator import validate_response
+from app.platform.conversation.handlers import (
     extract_order_total,
     next_state_from_response,
     trim_history,
 )
-from app.core.notifications.notify_owner import notify_new_order, notify_sale_confirmed
-from app.core.payments.receipt_validator import validate_pix_receipt
-from app.services.pix_fraud_guard import FRAUD_RESPONSES, detect_pressure
-from app.core.orders.context import OrderContext
-from app.core.orders.delivery_validator import extract_block_and_apartment, validate_delivery
-from app.core.orders.parser import parse_delivery_type, parse_items_from_claude
-from app.core.orders.service import OrderService
-from app.core.whatsapp.client import WhatsAppClient, get_whatsapp_client
-from app.core.ws_manager import ws_manager
-from app.core.whatsapp.types import InboundMessage
+from app.platform.notifications.owner_notifier import notify_new_order, notify_sale_confirmed
+from app.platform.payments.receipt_validator import validate_pix_receipt
+from app.platform.payments.fraud_guard import FRAUD_RESPONSES, detect_pressure
+from app.platform.orders.context import OrderContext
+from app.platform.orders.delivery_validator import extract_block_and_apartment, validate_delivery
+from app.platform.orders.parser import parse_delivery_type, parse_items_from_claude
+from app.platform.orders.service import OrderService
+from app.platform.whatsapp.bridge_client import WhatsAppClient, get_whatsapp_client
+from app.platform.ws_manager import ws_manager
+from app.platform.whatsapp.types import InboundMessage
 from app.models.conversation import Conversation, ConversationState, ConversationStatus
 from app.models.customer import Customer
 from app.models.message import Message, MessageDirection, MessageType
@@ -43,11 +44,15 @@ class ConversationEngine:
         claude: ClaudeClient | None = None,
         whatsapp: WhatsAppClient | None = None,
         business: BusinessConfig | None = None,
+        tenant: TenantContext | None = None,
     ) -> None:
         self._db = db
         self._claude = claude or get_claude_client()
         self._whatsapp = whatsapp or get_whatsapp_client()
         self._business = business or get_business_config()
+        self._tenant = tenant
+        import uuid as _uuid
+        self._tenant_id = tenant.id if tenant else _uuid.UUID("00000000-0000-0000-0000-000000000001")
 
     async def handle(self, message: InboundMessage) -> None:
         print("ENGINE HANDLE:", message.phone, message.text, flush=True)
@@ -105,6 +110,7 @@ class ConversationEngine:
             history=history,
             user_message=augmented_message,
             product_search_fn=self._search_products,
+            tenant_name=self._tenant.name if self._tenant else "do cliente",
         )
 
         validation = validate_response(ai_response, conversation.state, order_ctx, self._business)
@@ -207,9 +213,11 @@ class ConversationEngine:
                     text("""
                         SELECT p.name, p.price
                         FROM products p
-                        WHERE p.is_available = true AND p.name ILIKE :q
+                        WHERE p.is_available = true
+                          AND p.name ILIKE :q
+                          AND p.tenant_id = :tid
                         ORDER BY p.name LIMIT 15
-                    """), {"q": f"%{termo}%"}
+                    """), {"q": f"%{termo}%", "tid": str(self._tenant_id)}
                 )
                 for row in result.fetchall():
                     if row.name not in seen:
@@ -224,9 +232,11 @@ class ConversationEngine:
                         text("""
                             SELECT p.name, p.price
                             FROM products p
-                            WHERE p.is_available = true AND p.name ILIKE :q
+                            WHERE p.is_available = true
+                              AND p.name ILIKE :q
+                              AND p.tenant_id = :tid
                             ORDER BY p.name LIMIT 10
-                        """), {"q": f"%{token}%"}
+                        """), {"q": f"%{token}%", "tid": str(self._tenant_id)}
                     )
                     for row in result.fetchall():
                         if row.name not in seen:
@@ -240,9 +250,11 @@ class ConversationEngine:
                         text("""
                             SELECT p.name, p.price
                             FROM products p
-                            WHERE p.is_available = true AND p.name ILIKE :q
+                            WHERE p.is_available = true
+                              AND p.name ILIKE :q
+                              AND p.tenant_id = :tid
                             ORDER BY p.name LIMIT 5
-                        """), {"q": f"{token[:4]}%"}
+                        """), {"q": f"{token[:4]}%", "tid": str(self._tenant_id)}
                     )
                     for row in result.fetchall():
                         if row.name not in seen:
@@ -276,15 +288,22 @@ class ConversationEngine:
 
     async def _get_or_create_customer(self, message: InboundMessage) -> Customer:
         result = await self._db.execute(
-            select(Customer).where(Customer.phone == message.phone)
+            select(Customer).where(
+                Customer.phone == message.phone,
+                Customer.tenant_id == self._tenant_id,
+            )
         )
         customer = result.scalar_one_or_none()
 
         if not customer:
-            customer = Customer(phone=message.phone, name=message.name)
+            customer = Customer(
+                phone=message.phone,
+                name=message.name,
+                tenant_id=self._tenant_id,
+            )
             self._db.add(customer)
             await self._db.flush()
-            logger.info("Novo cliente: %s", message.phone)
+            logger.info("Novo cliente: %s (tenant=%s)", message.phone, self._tenant_id)
         elif message.name and not customer.name:
             customer.name = message.name
 
@@ -296,6 +315,7 @@ class ConversationEngine:
             .options(selectinload(Conversation.messages))
             .where(
                 Conversation.customer_id == customer.id,
+                Conversation.tenant_id == self._tenant_id,
                 Conversation.status == ConversationStatus.ACTIVE,
             )
             .order_by(Conversation.created_at.desc())
@@ -305,6 +325,7 @@ class ConversationEngine:
         if not conversation:
             conversation = Conversation(
                 customer_id=customer.id,
+                tenant_id=self._tenant_id,
                 status=ConversationStatus.ACTIVE,
                 state=ConversationState.GREETING,
             )
