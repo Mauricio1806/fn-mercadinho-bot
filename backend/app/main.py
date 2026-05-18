@@ -71,6 +71,7 @@ def create_app() -> FastAPI:
 
     # Rotas
     from app.api.routes.webhook import router as webhook_router
+    from app.api.routes.tenants import router as tenants_router
     from app.api.routes.orders import router as orders_router
     from app.api.routes.products import router as products_router
     from app.api.routes.customers import router as customers_router
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
 
     app.include_router(webhook_router, prefix="/webhook", tags=["webhook"])
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+    app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
     app.include_router(orders_router, prefix="/api/orders", tags=["orders"])
     app.include_router(products_router, prefix="/api/products", tags=["products"])
     app.include_router(customers_router, prefix="/api/customers", tags=["customers"])
