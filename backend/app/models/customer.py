@@ -3,15 +3,13 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, UUIDType
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.order import Order
-    from app.models.tenant import Tenant
 
 
 class Customer(UUIDMixin, TimestampMixin, Base):
@@ -20,7 +18,7 @@ class Customer(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "customers"
 
     tenant_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -33,7 +31,6 @@ class Customer(UUIDMixin, TimestampMixin, Base):
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     total_orders: Mapped[int] = mapped_column(default=0, nullable=False)
 
-    # Relationships
     conversations: Mapped[list["Conversation"]] = relationship(
         back_populates="customer", cascade="all, delete-orphan"
     )

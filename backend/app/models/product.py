@@ -4,10 +4,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, UUIDType
 
 if TYPE_CHECKING:
     from app.models.order import OrderItem
@@ -20,7 +19,7 @@ class ProductCategory(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "product_categories"
 
     tenant_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -43,7 +42,7 @@ class Product(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "products"
 
     tenant_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -52,7 +51,7 @@ class Product(UUIDMixin, TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     category_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("product_categories.id"), nullable=False
+        UUIDType(), ForeignKey("product_categories.id"), nullable=False
     )
     stock_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_available: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

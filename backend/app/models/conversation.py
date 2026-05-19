@@ -4,10 +4,9 @@ import enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, UUIDType
 
 if TYPE_CHECKING:
     from app.models.customer import Customer
@@ -46,13 +45,13 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "conversations"
 
     tenant_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     customer_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False
+        UUIDType(), ForeignKey("customers.id"), nullable=False
     )
     status: Mapped[ConversationStatus] = mapped_column(
         Enum(ConversationStatus),

@@ -3,10 +3,9 @@
 import enum
 
 from sqlalchemy import Boolean, Enum, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, UUIDType
 
 from typing import TYPE_CHECKING
 
@@ -36,7 +35,7 @@ class Message(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "messages"
 
     conversation_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False, index=True
+        UUIDType(), ForeignKey("conversations.id"), nullable=False, index=True
     )
     direction: Mapped[MessageDirection] = mapped_column(
         Enum(MessageDirection), nullable=False

@@ -36,10 +36,13 @@ class TestCSVImport:
         produtos = self.importer.parse_csv(csv_content)
         assert produtos[0].is_available is False
 
-    def test_disponivel_vazio_usa_default_true(self):
+    def test_disponivel_vazio_usa_default_false(self):
+        """Campo disponivel vazio não é truthy — produto fica indisponível."""
         csv_content = "nome,preco,categoria,disponivel,external_id\nProduto,5.00,Cat,,SKU"
         produtos = self.importer.parse_csv(csv_content)
-        assert produtos[0].is_available is True
+        # String vazia "" não está na lista de valores válidos (true/sim/1/yes)
+        # Comportamento correto: is_available=False
+        assert produtos[0].is_available is False
 
     def test_external_id_vazio_usa_nome_como_chave(self):
         csv_content = "nome,preco,categoria,disponivel,external_id\nCafé Coado,4.50,Bebidas,true,"

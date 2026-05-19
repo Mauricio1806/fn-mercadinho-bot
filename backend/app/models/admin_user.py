@@ -3,18 +3,15 @@
 import enum
 
 from sqlalchemy import Boolean, Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, UUIDType
 
 
 class AdminRole(str, enum.Enum):
-    """Papel do usuário no sistema."""
-
-    SUPERADMIN = "superadmin"       # Acesso total à plataforma
-    TENANT_ADMIN = "tenant_admin"   # Admin do próprio tenant
-    TENANT_VIEWER = "tenant_viewer" # Visualização somente leitura
+    SUPERADMIN = "superadmin"
+    TENANT_ADMIN = "tenant_admin"
+    TENANT_VIEWER = "tenant_viewer"
 
 
 class AdminUser(UUIDMixin, TimestampMixin, Base):
@@ -27,7 +24,6 @@ class AdminUser(UUIDMixin, TimestampMixin, Base):
     full_name: Mapped[str] = mapped_column(String(100), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    # Papel no sistema
     role: Mapped[AdminRole] = mapped_column(
         Enum(AdminRole),
         default=AdminRole.TENANT_ADMIN,
@@ -36,13 +32,12 @@ class AdminUser(UUIDMixin, TimestampMixin, Base):
 
     # NULL = superadmin (sem tenant vinculado)
     tenant_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(),
         ForeignKey("tenants.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
 
-    # Compat legado
     @property
     def is_superuser(self) -> bool:
         return self.role == AdminRole.SUPERADMIN

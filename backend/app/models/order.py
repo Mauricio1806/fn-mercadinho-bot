@@ -4,10 +4,9 @@ import enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, UUIDType
 
 if TYPE_CHECKING:
     from app.models.customer import Customer
@@ -33,13 +32,13 @@ class Order(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "orders"
 
     tenant_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     customer_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False
+        UUIDType(), ForeignKey("customers.id"), nullable=False
     )
     status: Mapped[OrderStatus] = mapped_column(
         Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False, index=True
@@ -69,10 +68,10 @@ class OrderItem(UUIDMixin, Base):
     __tablename__ = "order_items"
 
     order_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False
+        UUIDType(), ForeignKey("orders.id"), nullable=False
     )
     product_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("products.id"), nullable=False
+        UUIDType(), ForeignKey("products.id"), nullable=False
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
