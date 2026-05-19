@@ -96,7 +96,7 @@ async def receive_webhook(
 
     # ── Processa com o engine do tenant ──────────────────────────────────
     try:
-        engine = ConversationEngine(db=db, business=tenant_ctx)
+        engine = ConversationEngine(db=db, tenant=tenant_ctx)
         await engine.handle(inbound)
     except Exception:
         logger.exception(

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import BusinessConfig, get_business_config
+from app.tenancy.context import TenantContext
 from app.core.ai.claude_client import ClaudeClient, get_claude_client
 from app.core.ai.prompt_builder import build_system_prompt
 from app.core.ai.response_validator import validate_response
@@ -56,11 +57,15 @@ class ConversationEngine:
         claude: ClaudeClient | None = None,
         whatsapp: WhatsAppClient | None = None,
         business: BusinessConfig | None = None,
+        tenant: TenantContext | None = None,
     ) -> None:
         self._db = db
         self._claude = claude or get_claude_client()
         self._whatsapp = whatsapp or get_whatsapp_client()
         self._business = business or get_business_config()
+        self._tenant = tenant
+        import uuid as _uuid
+        self._tenant_id = tenant.id if tenant else _uuid.UUID("00000000-0000-0000-0000-000000000001")
 
     async def handle(self, message: InboundMessage) -> None:
         """Ponto de entrada principal — processa uma mensagem recebida."""
@@ -219,15 +224,22 @@ class ConversationEngine:
 
     async def _get_or_create_customer(self, message: InboundMessage) -> Customer:
         result = await self._db.execute(
-            select(Customer).where(Customer.phone == message.phone)
+            select(Customer).where(
+                Customer.phone == message.phone,
+                Customer.tenant_id == self._tenant_id,
+            )
         )
         customer = result.scalar_one_or_none()
 
         if not customer:
-            customer = Customer(phone=message.phone, name=message.name)
+            customer = Customer(
+                phone=message.phone,
+                name=message.name,
+                tenant_id=self._tenant_id,
+            )
             self._db.add(customer)
             await self._db.flush()
-            logger.info("Novo cliente: %s", message.phone)
+            logger.info("Novo cliente: %s (tenant=%s)", message.phone, self._tenant_id)
         elif message.name and not customer.name:
             customer.name = message.name
 
@@ -239,6 +251,7 @@ class ConversationEngine:
             .options(selectinload(Conversation.messages))
             .where(
                 Conversation.customer_id == customer.id,
+                Conversation.tenant_id == self._tenant_id,
                 Conversation.status == ConversationStatus.ACTIVE,
             )
             .order_by(Conversation.created_at.desc())
@@ -248,6 +261,7 @@ class ConversationEngine:
         if not conversation:
             conversation = Conversation(
                 customer_id=customer.id,
+                tenant_id=self._tenant_id,
                 status=ConversationStatus.ACTIVE,
                 state=ConversationState.GREETING,
             )
