@@ -1,4 +1,4 @@
-"""Rotas de clientes."""
+"""Rotas de clientes — multi-tenant."""
 
 import uuid
 
@@ -6,9 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.middleware.auth import get_current_admin
+from app.api.middleware.tenant_scope import TenantScope, get_tenant_scope
 from app.database.session import get_db
-from app.models.admin_user import AdminUser
 from app.models.customer import Customer
 from app.schemas.customer import CustomerResponse, CustomerUpdate
 
@@ -20,11 +19,12 @@ async def list_customers(
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
 ) -> list[Customer]:
-    result = await db.execute(
-        select(Customer).order_by(Customer.created_at.desc()).limit(limit).offset(offset)
-    )
+    """Lista clientes filtrados por tenant."""
+    query = select(Customer).order_by(Customer.created_at.desc()).limit(limit).offset(offset)
+    query = scope.apply_filter(query, Customer)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -32,9 +32,11 @@ async def list_customers(
 async def get_customer(
     customer_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
 ) -> Customer:
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    query = select(Customer).where(Customer.id == customer_id)
+    query = scope.apply_filter(query, Customer)
+    result = await db.execute(query)
     customer = result.scalar_one_or_none()
 
     if not customer:
@@ -49,9 +51,11 @@ async def update_customer(
     customer_id: uuid.UUID,
     body: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
 ) -> Customer:
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    query = select(Customer).where(Customer.id == customer_id)
+    query = scope.apply_filter(query, Customer)
+    result = await db.execute(query)
     customer = result.scalar_one_or_none()
 
     if not customer:

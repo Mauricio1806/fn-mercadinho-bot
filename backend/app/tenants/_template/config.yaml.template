@@ -1,0 +1,85 @@
+# ══════════════════════════════════════════════════════════════
+# TENANT 0X — [NOME DO CLIENTE]
+# Copie este arquivo para a pasta do novo tenant e preencha
+# ══════════════════════════════════════════════════════════════
+
+# Nome do negócio exibido para o cliente
+nome: "TODO — Nome do Negócio"
+
+# Endereço completo (aparece no bot quando cliente perguntar)
+endereco: "TODO — Rua, Número, Bairro, Cidade - UF, CEP"
+
+# Redes sociais (opcional)
+instagram: null
+telefone: null
+
+# ── PIX ──────────────────────────────────────────────────────
+# tipo_chave: cpf | cnpj | email | telefone | aleatoria
+pix_chave: "TODO"
+pix_tipo_chave: "cnpj"
+pix_titular: "TODO — Nome do titular da conta"
+pix_banco: "TODO — Ex: Nubank, Itaú, SumUp"
+
+# ── Horário de Funcionamento ─────────────────────────────────
+horario:
+  abertura: "08:00"             # Hora de abertura (HH:MM)
+  fechamento: "18:00"           # Hora de fechamento (HH:MM)
+  dias: "Segunda a sábado"      # Descrição dos dias
+  domingo_abertura: null        # null se não abre aos domingos
+  domingo_fechamento: null
+  msg_fora_horario: "Estamos fechados agora! Voltamos em breve 😊"
+
+# ── Delivery ─────────────────────────────────────────────────
+delivery:
+  taxa_proxima: 5.00            # Taxa para entregas próximas (R$)
+  taxa_distante: 8.00           # Taxa para entregas distantes (R$)
+  raio_proxima_metros: 500      # Raio em metros para taxa proxima
+  pedido_minimo: 0.00           # Pedido mínimo (0 = sem mínimo)
+  tempo_estimado: "30-45 min"
+  horario_abertura: "08:00"
+  horario_fechamento: "18:00"
+  dias_semana: "Segunda a sexta"
+  msg_fora_horario_delivery: "Delivery disponível de segunda a sexta 😊"
+  blocos: []                    # Lista de blocos/áreas atendidas
+  tipo: "distancia"             # distancia | condominio | fixo
+
+# ── Donos / Notificações ─────────────────────────────────────
+# Números que recebem notificação de novo pedido e venda confirmada
+# Formato com DDI: "+5571999999999"
+owners:
+  - "+55XXXXXXXXXXX"            # Dono 1 (obrigatório)
+  # - "+55XXXXXXXXXXX"          # Dono 2 (opcional)
+
+# ── Financeiro ───────────────────────────────────────────────
+comissao_percentual: 5.0        # % de comissão da plataforma
+valor_alto_alerta: 100.0        # Valor mínimo para alerta "pedido alto"
+
+# ── Personalidade do Bot ─────────────────────────────────────
+persona:
+  tom: "informal"               # informal | formal
+  usa_emojis: true
+  girias_regionais: null        # null | "baianas" | "cariocas" | "paulistanas"
+  saudacao: "Olá! Bem-vindo! 👋"
+  despedida: "Obrigado! Até a próxima 😊"
+  quando_nao_entende: "Desculpa, não entendi 😅 Pode repetir?"
+  quando_sem_estoque: "Poxa, tá em falta 😕 Posso sugerir outra coisa?"
+  quando_fora_area: "Não atendemos essa área, mas pode vir buscar! 😊"
+  tratamento: "você"            # você | senhor(a)
+
+# ── Identidade Visual (Dashboard) ────────────────────────────
+branding:
+  cor_primaria: "#1976D2"       # Cor principal (hex)
+  cor_secundaria: "#FFC107"     # Cor secundária (hex)
+  logo_url: null                # URL pública do logo (opcional)
+
+# ── Integração de Estoque ─────────────────────────────────────
+# Ativar quando o cliente tiver sistema ERP ou estoque próprio
+integracao_estoque:
+  ativo: false                  # true para ativar sincronização
+  sistema: null                 # bling | tiny | webhook | csv
+  api_key: null                 # Chave de API do sistema
+  webhook_url: null             # URL de webhook (para receber updates)
+  sync_intervalo_minutos: 60    # Intervalo de sync automático
+  # Para Bling (OAuth2):
+  client_id: null
+  client_secret: null

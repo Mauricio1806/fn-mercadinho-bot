@@ -1,0 +1,67 @@
+# ══════════════════════════════════════════════════════════════
+# TENANT 01 — FN Mercadinho
+# UUID fixo: 00000000-0000-0000-0000-000000000001
+# WhatsApp bot: configurar via ENV (WHATSAPP_INSTANCE)
+# ══════════════════════════════════════════════════════════════
+
+nome: "FN Mercadinho"
+endereco: "Conjunto Chácara do Cabula, 74 Box 09, Salvador - BA, 41150030"
+instagram: "fnmercadinhooficial"
+telefone: "71 99135-6145"
+
+pix_chave: "60747738000149"
+pix_tipo_chave: "cnpj"
+pix_titular: "NN Mercadinho"
+pix_banco: "SumUp"
+
+horario:
+  abertura: "07:00"
+  fechamento: "21:00"
+  domingo_abertura: "08:00"
+  domingo_fechamento: "12:30"
+  dias: "Segunda a sábado"
+  msg_fora_horario: "Estamos fechados agora! 😊 Segunda a sábado das 7h às 21h, domingo das 8h às 12h30."
+
+delivery:
+  taxa_proxima: 3.00
+  taxa_distante: 5.00
+  raio_proxima_metros: 500
+  pedido_minimo: 15.00
+  tempo_estimado: "15-30 min"
+  horario_abertura: "08:00"
+  horario_fechamento: "20:00"
+  dias_semana: "Segunda a sexta"
+  msg_fora_horario_delivery: "Delivery disponível de segunda a sexta, das 8h às 20h 😊"
+  blocos: ["A", "B", "C"]
+  tipo: "distancia"
+
+# Números dos donos (com DDI) para notificações de pedido
+owners:
+  - "+5571991356145"
+  - "+5571993266224"
+
+comissao_percentual: 5.0
+valor_alto_alerta: 100.0
+
+persona:
+  tom: "informal"
+  usa_emojis: true
+  girias_regionais: "baianas"
+  saudacao: "Olá! Bem-vindo ao FN Mercadinho 👋"
+  despedida: "Obrigado! Até a próxima 😊"
+  quando_nao_entende: "Desculpa, não entendi 😅 Pode repetir?"
+  quando_sem_estoque: "Poxa, tá em falta 😕 Posso sugerir outra coisa?"
+  quando_fora_area: "Entregamos em até 500m do mercadinho. Pode vir buscar também! 😊"
+  tratamento: "você"
+
+branding:
+  cor_primaria: "#2E7D32"
+  cor_secundaria: "#FFA000"
+  logo_url: null
+
+integracao_estoque:
+  ativo: false
+  sistema: null
+  api_key: null
+  webhook_url: null
+  sync_intervalo_minutos: 60

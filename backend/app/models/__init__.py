@@ -3,10 +3,12 @@ from app.models.product import Product, ProductCategory
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.conversation import Conversation, ConversationStatus
 from app.models.message import Message, MessageDirection
-from app.models.admin_user import AdminUser
+from app.models.admin_user import AdminUser, AdminRole
 from app.models.pix_receipt_log import PixReceiptLog
+from app.models.tenant import Tenant
 
 __all__ = [
+    "Tenant",
     "Customer",
     "Product",
     "ProductCategory",
@@ -18,5 +20,6 @@ __all__ = [
     "Message",
     "MessageDirection",
     "AdminUser",
+    "AdminRole",
     "PixReceiptLog",
 ]

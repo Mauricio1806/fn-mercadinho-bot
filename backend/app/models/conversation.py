@@ -1,4 +1,4 @@
-"""Model de conversa (sessão de atendimento)."""
+"""Model de conversa (sessão de atendimento) — multi-tenant."""
 
 import enum
 from typing import TYPE_CHECKING
@@ -12,6 +12,7 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from app.models.customer import Customer
     from app.models.message import Message
+    from app.models.tenant import Tenant
 
 
 class ConversationStatus(str, enum.Enum):
@@ -44,6 +45,12 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "conversations"
 
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     customer_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False
     )
@@ -68,4 +75,4 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Conversation id={self.id} state={self.state} status={self.status}>"
+        return f"<Conversation id={self.id} state={self.state} tenant={self.tenant_id}>"

@@ -1,4 +1,4 @@
-"""Rota de dashboard — métricas e stats."""
+"""Rota de dashboard — métricas por tenant + consolidado para superadmin."""
 
 from datetime import date, timedelta
 
@@ -7,16 +7,16 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.middleware.auth import get_current_admin
-from app.config import get_business_config
+from app.api.middleware.auth import get_current_superadmin
+from app.api.middleware.tenant_scope import TenantScope, get_tenant_scope
 from app.database.session import get_db
 from app.models.admin_user import AdminUser
 from app.models.customer import Customer
 from app.models.order import Order, OrderStatus
+from app.models.tenant import Tenant
 
 router = APIRouter()
 
-# Status considerados como "venda efetivada" (PIX confirmado)
 _CONFIRMED_STATUSES = [
     OrderStatus.PAYMENT_CONFIRMED,
     OrderStatus.PREPARING,
@@ -29,68 +29,80 @@ _CONFIRMED_STATUSES = [
 @router.get("/stats")
 async def get_stats(
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
 ) -> dict:
-    """Retorna métricas para o dashboard."""
+    """Retorna métricas para o dashboard do tenant (ou do tenant filtrado)."""
     today = date.today()
     week_ago = today - timedelta(days=7)
-    business = get_business_config()
 
-    # Pedidos hoje (exceto cancelados)
+    def _tenant_filter(q, model):
+        return scope.apply_filter(q, model)
+
     orders_today = await db.execute(
-        select(func.count(Order.id)).where(
-            func.date(Order.created_at) == today,
-            Order.status != OrderStatus.CANCELLED,
+        _tenant_filter(
+            select(func.count(Order.id)).where(
+                func.date(Order.created_at) == today,
+                Order.status != OrderStatus.CANCELLED,
+            ),
+            Order,
         )
     )
-
-    # Vendas confirmadas hoje (PIX validado)
     sales_today = await db.execute(
-        select(func.count(Order.id)).where(
-            func.date(Order.created_at) == today,
-            Order.status.in_(_CONFIRMED_STATUSES),
+        _tenant_filter(
+            select(func.count(Order.id)).where(
+                func.date(Order.created_at) == today,
+                Order.status.in_(_CONFIRMED_STATUSES),
+            ),
+            Order,
         )
     )
-
-    # Receita confirmada hoje
     revenue_today = await db.execute(
-        select(func.sum(Order.total_amount)).where(
-            func.date(Order.created_at) == today,
-            Order.status.in_(_CONFIRMED_STATUSES),
+        _tenant_filter(
+            select(func.sum(Order.total_amount)).where(
+                func.date(Order.created_at) == today,
+                Order.status.in_(_CONFIRMED_STATUSES),
+            ),
+            Order,
         )
     )
-
-    # Comissão gerada hoje
     commission_today = await db.execute(
-        select(func.sum(Order.commission_amount)).where(
-            func.date(Order.created_at) == today,
-            Order.status.in_(_CONFIRMED_STATUSES),
+        _tenant_filter(
+            select(func.sum(Order.commission_amount)).where(
+                func.date(Order.created_at) == today,
+                Order.status.in_(_CONFIRMED_STATUSES),
+            ),
+            Order,
         )
     )
-
-    # Receita confirmada da semana
     revenue_week = await db.execute(
-        select(func.sum(Order.total_amount)).where(
-            func.date(Order.created_at) >= week_ago,
-            Order.status.in_(_CONFIRMED_STATUSES),
+        _tenant_filter(
+            select(func.sum(Order.total_amount)).where(
+                func.date(Order.created_at) >= week_ago,
+                Order.status.in_(_CONFIRMED_STATUSES),
+            ),
+            Order,
         )
     )
-
-    # Comissão da semana
     commission_week = await db.execute(
-        select(func.sum(Order.commission_amount)).where(
-            func.date(Order.created_at) >= week_ago,
-            Order.status.in_(_CONFIRMED_STATUSES),
+        _tenant_filter(
+            select(func.sum(Order.commission_amount)).where(
+                func.date(Order.created_at) >= week_ago,
+                Order.status.in_(_CONFIRMED_STATUSES),
+            ),
+            Order,
         )
     )
-
-    # Total de clientes
-    total_customers = await db.execute(select(func.count(Customer.id)))
-
-    # Pedidos aguardando separação
+    total_customers = await db.execute(
+        _tenant_filter(select(func.count(Customer.id)), Customer)
+    )
     pending_orders = await db.execute(
-        select(func.count(Order.id)).where(
-            Order.status.in_([OrderStatus.PENDING, OrderStatus.PAYMENT_CONFIRMED, OrderStatus.PREPARING])
+        _tenant_filter(
+            select(func.count(Order.id)).where(
+                Order.status.in_(
+                    [OrderStatus.PENDING, OrderStatus.PAYMENT_CONFIRMED, OrderStatus.PREPARING]
+                )
+            ),
+            Order,
         )
     )
 
@@ -103,24 +115,73 @@ async def get_stats(
         "commission_week": float(commission_week.scalar() or 0),
         "total_customers": total_customers.scalar() or 0,
         "pending_orders": pending_orders.scalar() or 0,
-        "commission_rate_pct": business.comissao_percentual,
+    }
+
+
+@router.get("/consolidated")
+async def get_consolidated_stats(
+    db: AsyncSession = Depends(get_db),
+    _: AdminUser = Depends(get_current_superadmin),
+) -> dict:
+    """Métricas consolidadas de TODOS os tenants — apenas superadmin."""
+    today = date.today()
+    week_ago = today - timedelta(days=7)
+
+    total_tenants = await db.execute(
+        select(func.count(Tenant.id)).where(Tenant.is_active == True)  # noqa: E712
+    )
+    revenue_today_all = await db.execute(
+        select(func.sum(Order.total_amount)).where(
+            func.date(Order.created_at) == today,
+            Order.status.in_(_CONFIRMED_STATUSES),
+        )
+    )
+    commission_today_all = await db.execute(
+        select(func.sum(Order.commission_amount)).where(
+            func.date(Order.created_at) == today,
+            Order.status.in_(_CONFIRMED_STATUSES),
+        )
+    )
+    revenue_week_all = await db.execute(
+        select(func.sum(Order.total_amount)).where(
+            func.date(Order.created_at) >= week_ago,
+            Order.status.in_(_CONFIRMED_STATUSES),
+        )
+    )
+    commission_week_all = await db.execute(
+        select(func.sum(Order.commission_amount)).where(
+            func.date(Order.created_at) >= week_ago,
+            Order.status.in_(_CONFIRMED_STATUSES),
+        )
+    )
+    total_orders_all = await db.execute(select(func.count(Order.id)))
+
+    return {
+        "total_tenants_active": total_tenants.scalar() or 0,
+        "revenue_today_all": float(revenue_today_all.scalar() or 0),
+        "commission_today_all": float(commission_today_all.scalar() or 0),
+        "revenue_week_all": float(revenue_week_all.scalar() or 0),
+        "commission_week_all": float(commission_week_all.scalar() or 0),
+        "total_orders_platform": total_orders_all.scalar() or 0,
     }
 
 
 @router.get("/sales")
 async def get_confirmed_sales(
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
     limit: int = 50,
 ) -> list[dict]:
-    """Retorna as últimas vendas confirmadas (PIX validado)."""
-    result = await db.execute(
+    """Últimas vendas confirmadas — filtradas por tenant."""
+    query = (
         select(Order)
         .options(selectinload(Order.items), selectinload(Order.customer))
         .where(Order.status.in_(_CONFIRMED_STATUSES))
         .order_by(Order.created_at.desc())
         .limit(limit)
     )
+    query = scope.apply_filter(query, Order)
+    result = await db.execute(query)
     orders = list(result.scalars().all())
 
     return [
@@ -136,11 +197,7 @@ async def get_confirmed_sales(
             "delivery_fee": float(o.delivery_fee),
             "commission": float(o.commission_amount or 0),
             "status": o.status.value,
-            "delivery": (
-                f"Bloco {o.delivery_building_block}, Apto {o.delivery_apartment}"
-                if o.delivery_building_block
-                else "Retirada"
-            ),
+            "tenant_id": str(o.tenant_id),
         }
         for o in orders
     ]

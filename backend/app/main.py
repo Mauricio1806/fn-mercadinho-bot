@@ -1,4 +1,4 @@
-"""Ponto de entrada da aplicação FastAPI."""
+"""Ponto de entrada da aplicação FastAPI — multi-tenant."""
 
 import logging
 from contextlib import asynccontextmanager
@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.config import get_business_config, get_settings
+from app.config import get_settings
 from app.models.base import Base
 from app.database.session import engine
 
@@ -19,29 +19,35 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Inicialização e teardown da aplicação."""
-    logger.info("🚀 FN Mercadinho iniciando...")
+    logger.info("🚀 Atendê Platform iniciando...")
 
-    # Cria tabelas (em produção usar alembic migrate)
     if settings.env in ("development", "test"):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("✅ Tabelas criadas/verificadas.")
 
-    # Valida config do negócio
-    business = get_business_config()
-    logger.info("📋 Config carregada: %s", business.nome)
+        # Seed de tenants em desenvolvimento
+        if settings.env == "development":
+            try:
+                from app.database.session import AsyncSessionLocal
+                from app.database.seed_tenants import seed_tenants
+                async with AsyncSessionLocal() as session:
+                    await seed_tenants(session)
+            except Exception:
+                logger.warning("Seed de tenants falhou — continuando sem seed.")
 
+    logger.info("🏢 Plataforma multi-tenant pronta — ambiente: %s", settings.env)
     yield
 
-    logger.info("👋 FN Mercadinho encerrando...")
+    logger.info("👋 Atendê Platform encerrando...")
     await engine.dispose()
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="FN Mercadinho API",
-        description="Backend do chatbot WhatsApp para o FN Mercadinho",
-        version="1.0.0",
+        title="Atendê Platform API",
+        description="Backend multi-tenant para chatbots WhatsApp de comércio local",
+        version="2.0.0",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
@@ -56,7 +62,7 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type"],
     )
 
-    # Security headers middleware
+    # Security headers
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next: Any) -> Any:
         response = await call_next(request)
@@ -76,6 +82,8 @@ def create_app() -> FastAPI:
     from app.api.routes.conversations import router as conversations_router
     from app.api.routes.service import router as service_router
     from app.api.routes.ws import router as ws_router
+    from app.api.routes.tenants import router as tenants_router
+    from app.api.routes.integrations import router as integrations_router
 
     app.include_router(webhook_router, prefix="/webhook", tags=["webhook"])
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
@@ -86,11 +94,12 @@ def create_app() -> FastAPI:
     app.include_router(conversations_router, prefix="/api/conversations", tags=["conversations"])
     app.include_router(service_router, prefix="/api/service", tags=["service"])
     app.include_router(ws_router, prefix="/ws", tags=["websocket"])
+    app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
+    app.include_router(integrations_router, prefix="/api/integrations", tags=["integrations"])
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict[str, str]:
-        """Endpoint de health check para o load balancer."""
-        return {"status": "ok", "service": "fn-mercadinho-api"}
+        return {"status": "ok", "service": "atende-platform", "version": "2.0.0"}
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:

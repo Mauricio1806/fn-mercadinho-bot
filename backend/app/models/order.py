@@ -1,4 +1,4 @@
-"""Models de pedido e itens do pedido."""
+"""Models de pedido e itens do pedido — multi-tenant."""
 
 import enum
 from typing import TYPE_CHECKING
@@ -12,18 +12,19 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from app.models.customer import Customer
     from app.models.product import Product
+    from app.models.tenant import Tenant
 
 
 class OrderStatus(str, enum.Enum):
     """Status possíveis de um pedido."""
 
-    PENDING = "pending"                 # Aguardando comprovante PIX
-    PAYMENT_CONFIRMED = "payment_confirmed"  # Comprovante validado — venda efetivada
-    PREPARING = "preparing"             # Em preparo pelo funcionário
-    READY = "ready"                     # Pronto para entrega
-    DELIVERING = "delivering"           # Em rota de entrega
-    DELIVERED = "delivered"             # Entregue
-    CANCELLED = "cancelled"             # Cancelado
+    PENDING = "pending"                        # Aguardando comprovante PIX
+    PAYMENT_CONFIRMED = "payment_confirmed"    # Comprovante validado — venda efetivada
+    PREPARING = "preparing"                    # Em preparo pelo funcionário
+    READY = "ready"                            # Pronto para entrega / retirada
+    DELIVERING = "delivering"                  # Em rota de entrega
+    DELIVERED = "delivered"                    # Entregue
+    CANCELLED = "cancelled"                    # Cancelado
 
 
 class Order(UUIDMixin, TimestampMixin, Base):
@@ -31,6 +32,12 @@ class Order(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "orders"
 
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     customer_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False
     )
@@ -53,7 +60,7 @@ class Order(UUIDMixin, TimestampMixin, Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Order id={self.id} status={self.status} total={self.total_amount}>"
+        return f"<Order id={self.id} status={self.status} tenant={self.tenant_id}>"
 
 
 class OrderItem(UUIDMixin, Base):

@@ -1,0 +1,1 @@
+# Integrações de estoque externo

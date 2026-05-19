@@ -1,4 +1,4 @@
-"""Rotas de conversas — visualização e controle pelo admin."""
+"""Rotas de conversas — multi-tenant."""
 
 import uuid
 
@@ -8,9 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.middleware.auth import get_current_admin
+from app.api.middleware.tenant_scope import TenantScope, get_tenant_scope
 from app.database.session import get_db
-from app.models.admin_user import AdminUser
 from app.models.conversation import Conversation, ConversationState, ConversationStatus
 from app.models.message import Message, MessageDirection
 
@@ -23,6 +22,7 @@ class MessageResponse(BaseModel):
     content: str
     is_ai_generated: bool
     tokens_used: int | None
+    created_at: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -46,16 +46,17 @@ async def list_conversations(
     status_filter: ConversationStatus | None = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
 ) -> list[dict]:
-    from app.models.customer import Customer
-
+    """Lista conversas filtradas por tenant."""
     query = (
         select(Conversation)
         .options(selectinload(Conversation.messages), selectinload(Conversation.customer))
         .order_by(Conversation.created_at.desc())
         .limit(limit)
     )
+    query = scope.apply_filter(query, Conversation)
+
     if status_filter:
         query = query.where(Conversation.status == status_filter)
 
@@ -82,13 +83,15 @@ async def list_conversations(
 async def get_conversation_messages(
     conversation_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
 ) -> list[Message]:
-    result = await db.execute(
+    query = (
         select(Conversation)
         .options(selectinload(Conversation.messages))
         .where(Conversation.id == conversation_id)
     )
+    query = scope.apply_filter(query, Conversation)
+    result = await db.execute(query)
     conv = result.scalar_one_or_none()
 
     if not conv:
@@ -103,12 +106,12 @@ async def get_conversation_messages(
 async def human_takeover(
     conversation_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
+    scope: TenantScope = Depends(get_tenant_scope),
 ) -> dict:
     """Admin assume o controle da conversa (desativa o bot)."""
-    result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    query = select(Conversation).where(Conversation.id == conversation_id)
+    query = scope.apply_filter(query, Conversation)
+    result = await db.execute(query)
     conv = result.scalar_one_or_none()
 
     if not conv:

@@ -1,9 +1,8 @@
-"""Model do cliente (quem envia mensagens no WhatsApp)."""
+"""Model do cliente — multi-tenant."""
 
-import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,6 +11,7 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.order import Order
+    from app.models.tenant import Tenant
 
 
 class Customer(UUIDMixin, TimestampMixin, Base):
@@ -19,7 +19,13 @@ class Customer(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "customers"
 
-    phone: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    phone: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     building_block: Mapped[str | None] = mapped_column(String(10), nullable=True)
     apartment: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -36,4 +42,4 @@ class Customer(UUIDMixin, TimestampMixin, Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Customer phone={self.phone} name={self.name}>"
+        return f"<Customer phone={self.phone} tenant={self.tenant_id}>"
