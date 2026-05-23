@@ -84,7 +84,7 @@ class BusinessConfig:
     # ── Mercadinho ──────────────────────────────────────────────
     @property
     def nome(self) -> str:
-        return self._raw.get("mercadinho", {}).get("nome", "FN Mercadinho")
+        return self._raw.get("mercadinho", {}).get("nome", "Estabelecimento")
 
     @property
     def endereco(self) -> str:
@@ -222,7 +222,7 @@ class BusinessConfig:
     @property
     def saudacao(self) -> str:
         return self._raw.get("personalidade", {}).get(
-            "saudacao", "Olá! Bem-vindo ao FN Mercadinho 👋"
+            "saudacao", "Olá! Bem-vindo 👋"
         )
 
     @property

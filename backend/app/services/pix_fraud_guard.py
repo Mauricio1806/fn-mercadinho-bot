@@ -72,7 +72,7 @@ FRAUD_RESPONSES: dict[str, str] = {
         "Nossa chave é {pix_key}. Pode verificar?"
     ),
     "RECEBEDOR_ERRADO": (
-        "⚠️ O nome do recebedor no comprovante não corresponde ao FN Mercadinho. "
+        "⚠️ O nome do recebedor no comprovante não corresponde ao estabelecimento. "
         "Verifique se o Pix foi pra gente, por favor."
     ),
     "COMPROVANTE_ANTIGO": (
@@ -171,7 +171,7 @@ async def check_fraud(
         if recipient_key and recipient_key not in pix_keys:
             result.fail(
                 f"CHAVE_PIX_ERRADA: Comprovante para '{recipient_key}', "
-                f"não bate com chaves do FN Mercadinho."
+                f"não bate com as chaves cadastradas do estabelecimento."
             )
 
     if recipient_names:
@@ -184,7 +184,7 @@ async def check_fraud(
             if not match:
                 result.fail(
                     f"RECEBEDOR_ERRADO: Nome no comprovante '{recipient_name}' "
-                    f"não corresponde ao FN Mercadinho."
+                    f"não corresponde ao estabelecimento."
                 )
 
     # CHECK 5: Data/hora do comprovante (vetor #3 — outra transação antiga)

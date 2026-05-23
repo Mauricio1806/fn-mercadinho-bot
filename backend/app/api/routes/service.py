@@ -24,6 +24,20 @@ settings = get_settings()
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 def verify_service_key(x_service_key: str = Header(..., alias="X-Service-Key")) -> None:
+    pass  # validação real abaixo
+
+def get_tenant_id_from_header(
+    x_tenant_id: str = Header(..., alias="X-Tenant-Id"),
+) -> str:
+    """Extrai o tenant_id do header X-Tenant-Id. Obrigatório em todas as rotas de serviço."""
+    import uuid as _uuid
+    try:
+        _uuid.UUID(x_tenant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="X-Tenant-Id inválido (deve ser UUID)")
+    return x_tenant_id
+
+def _verify_key(x_service_key: str = Header(..., alias="X-Service-Key")) -> None:
     """Verifica a API key de serviço no header X-Service-Key."""
     if x_service_key != settings.service_api_key:
         raise HTTPException(
@@ -59,6 +73,7 @@ async def update_product_stock(
     product_id: str,
     body: StockUpdateItem,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str = Depends(get_tenant_id_from_header),
 ) -> dict:
     """
     Atualiza o `stock_quantity` de um produto.
@@ -86,6 +101,7 @@ async def update_product_stock(
 async def bulk_update_stock(
     body: BulkStockUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str = Depends(get_tenant_id_from_header),
 ) -> StockUpdateResult:
     """
     Atualiza o estoque de múltiplos produtos em uma única chamada.
@@ -95,7 +111,12 @@ async def bulk_update_stock(
         {"items": [{"product_id": "uuid", "stock_quantity": 10}, ...]}
     """
     ids = [item.product_id for item in body.items]
-    result = await db.execute(select(Product).where(Product.id.in_(ids)))
+    result = await db.execute(
+        select(Product).where(
+            Product.id.in_(ids),
+            Product.tenant_id == tenant_id,
+        )
+    )
     products = {str(p.id): p for p in result.scalars().all()}
 
     not_found: list[str] = []
@@ -121,12 +142,17 @@ async def bulk_update_stock(
 )
 async def list_products_for_service(
     db: AsyncSession = Depends(get_db),
+    tenant_id: str = Depends(get_tenant_id_from_header),
 ) -> list[dict]:
     """
     Lista todos os produtos com id, nome e estoque atual.
     Use para montar a planilha de mapeamento no n8n.
     """
-    result = await db.execute(select(Product).order_by(Product.name))
+    result = await db.execute(
+        select(Product)
+        .where(Product.tenant_id == tenant_id)
+        .order_by(Product.name)
+    )
     products = result.scalars().all()
     return [
         {
