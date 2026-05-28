@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import BusinessConfig, get_business_config
 from app.tenancy.context import TenantContext
+from app.core.recovery.cart_recovery import mark_recovered
 from app.core.ai.claude_client import ClaudeClient, get_claude_client
 from app.core.ai.prompt_builder import build_system_prompt
 from app.core.ai.response_validator import validate_response

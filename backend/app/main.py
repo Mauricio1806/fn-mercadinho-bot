@@ -37,7 +37,19 @@ async def lifespan(app: FastAPI):
                 logger.warning("Seed de tenants falhou — continuando sem seed.")
 
     logger.info("🏢 Plataforma multi-tenant pronta — ambiente: %s", settings.env)
+    from app.core.recovery.scheduler import start_scheduler, stop_scheduler, activate_recovery_for_tenant
+    from app.models.tenant import Tenant
+    from app.database.session import AsyncSessionLocal
+    from sqlalchemy import select as _select
+    start_scheduler()
+    # Re-ativa recovery para tenants que tinham ativo antes do restart
+    async with AsyncSessionLocal() as _db:
+        _r = await _db.execute(_select(Tenant).where(Tenant.active == True))
+        for _t in _r.scalars().all():
+            if (_t.config or {}).get('recovery', {}).get('enabled', False):
+                activate_recovery_for_tenant(_t.id, _t.config)
     yield
+    stop_scheduler()
 
     logger.info("👋 Atendê Platform encerrando...")
     await engine.dispose()
@@ -74,6 +86,7 @@ def create_app() -> FastAPI:
 
     # Rotas
     from app.api.routes.webhook import router as webhook_router
+    from app.api.routes.recovery import router as recovery_router
     from app.api.routes.orders import router as orders_router
     from app.api.routes.products import router as products_router
     from app.api.routes.customers import router as customers_router
@@ -95,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(service_router, prefix="/api/service", tags=["service"])
     app.include_router(ws_router, prefix="/ws", tags=["websocket"])
     app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
+    app.include_router(recovery_router, prefix="/api/recovery", tags=["recovery"])
     app.include_router(integrations_router, prefix="/api/integrations", tags=["integrations"])
 
     @app.get("/health", tags=["health"])
