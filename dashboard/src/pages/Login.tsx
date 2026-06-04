@@ -1,12 +1,11 @@
 /**
- * Login page — autenticação multi-tenant.
- * Detecta role do JWT e redireciona para a área correta.
+ * Login — visual profissional com fundo desfocado dinâmico por tenant.
+ * Igual ao padrão Awsales: background blurred + card centralizado.
  */
 
 import { useState, type FormEvent } from "react";
-import { login, saveTokens } from "@/lib/auth";
+import { saveTokens, getBranding } from "@/lib/auth";
 import { login as apiLogin } from "@/lib/api";
-import { getBranding } from "@/lib/auth";
 import toast from "react-hot-toast";
 
 interface LoginProps {
@@ -14,90 +13,135 @@ interface LoginProps {
 }
 
 export function Login({ onSuccess }: LoginProps) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [showPass, setShowPass] = useState(false);
   const branding = getBranding();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!email || !password) return;
-
     setLoading(true);
     try {
       const { access_token, refresh_token } = await apiLogin(email, password);
       saveTokens(access_token, refresh_token);
-      toast.success("Login realizado!");
       onSuccess();
     } catch (err: any) {
-      const msg = err?.response?.data?.detail ?? "Email ou senha incorretos.";
-      toast.error(msg);
+      toast.error(err?.response?.data?.detail ?? "Email ou senha incorretos.");
     } finally {
       setLoading(false);
     }
   }
 
-  const firstLetter = branding.tenant_name.charAt(0).toUpperCase();
-
   return (
-    <div className="login-page">
-      <div className="card login-card">
-        <div className="login-logo">
-          <div className="login-logo-badge" style={{ background: branding.cor_primaria }}>
-            {firstLetter}
+    <div className="login-root">
+      {/* Fundo desfocado — mockup do dashboard */}
+      <div className="login-bg">
+        <div className="login-bg-mockup">
+          <div className="mockup-sidebar" style={{ background: branding.cor_primaria + "22" }} />
+          <div className="mockup-content">
+            {[120, 80, 160, 100, 140, 90].map((w, i) => (
+              <div key={i} className="mockup-bar" style={{
+                width: w,
+                height: 12 + (i % 3) * 6,
+                background: i % 2 === 0 ? branding.cor_primaria + "44" : "#ffffff11"
+              }} />
+            ))}
+            {[1,2,3].map(i => (
+              <div key={i} className="mockup-card" style={{ background: "#ffffff08" }}>
+                <div className="mockup-line" style={{ width: "60%", background: branding.cor_primaria + "33" }} />
+                <div className="mockup-line" style={{ width: "40%", background: "#ffffff11" }} />
+                <div className="mockup-line" style={{ width: "80%", background: "#ffffff0a" }} />
+              </div>
+            ))}
           </div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px" }}>
-            {branding.tenant_name}
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
-            Dashboard Administrativo
+        </div>
+      </div>
+
+      {/* Overlay desfocado */}
+      <div className="login-overlay" />
+
+      {/* Card de login */}
+      <div className="login-card-wrap">
+        <div className="login-card">
+          {/* Logo / ícone */}
+          <div className="login-brand">
+            {branding.logo_url ? (
+              <img
+                src={branding.logo_url}
+                alt={branding.tenant_name}
+                className="login-logo-img"
+              />
+            ) : (
+              <div
+                className="login-logo-icon"
+                style={{ background: branding.cor_primaria }}
+              >
+                {branding.tenant_name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <h1 className="login-title">{branding.tenant_name}</h1>
+            <p className="login-subtitle">Painel administrativo</p>
+          </div>
+
+          {/* Formulário */}
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="login-field">
+              <label htmlFor="email" className="login-label">E-mail</label>
+              <input
+                id="email"
+                type="email"
+                className="login-input"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoFocus
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="login-field">
+              <label htmlFor="password" className="login-label">Senha</label>
+              <div className="login-input-wrap">
+                <input
+                  id="password"
+                  type={showPass ? "text" : "password"}
+                  className="login-input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="login-eye"
+                  onClick={() => setShowPass(v => !v)}
+                  tabIndex={-1}
+                >
+                  {showPass ? "🙈" : "👁"}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="login-btn"
+              disabled={loading}
+              style={{ background: branding.cor_primaria }}
+            >
+              {loading ? (
+                <span className="login-spinner" />
+              ) : "Entrar"}
+            </button>
+          </form>
+
+          <p className="login-footer">
+            Atendê Platform · Acesso seguro
           </p>
         </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              className="input"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="password">Senha</label>
-            <input
-              id="password"
-              type="password"
-              className="input"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </div>
-
-          <button
-            id="btn-login"
-            type="submit"
-            className="btn btn-primary"
-            disabled={loading}
-            style={{ width: "100%", marginTop: 8, padding: "12px" }}
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
-
-        <p style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "var(--color-text-muted)" }}>
-          Atendê Platform v2.0 — Multi-tenant
-        </p>
       </div>
     </div>
   );
