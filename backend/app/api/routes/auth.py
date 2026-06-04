@@ -15,6 +15,10 @@ from app.models.admin_user import AdminUser, AdminRole
 from app.models.tenant import Tenant
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 settings = get_settings()
 
@@ -63,7 +67,8 @@ async def _build_token_payload(user: AdminUser, db: AsyncSession) -> dict:
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     result = await db.execute(select(AdminUser).where(AdminUser.email == body.email))
     user = result.scalar_one_or_none()
 
