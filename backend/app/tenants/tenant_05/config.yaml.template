@@ -1,0 +1,48 @@
+# Tenant 05 — Aguardando cliente
+# Preencha com base no FORMULARIO_CLIENTE.md
+
+nome: "AGUARDANDO_CLIENTE"
+slug: "tenant-05"
+whatsapp_number: ""
+
+pix:
+  tipo_chave: ""
+  chave: ""
+  titular: ""
+  banco: ""
+
+horario:
+  abertura: "08:00"
+  fechamento: "18:00"
+
+delivery:
+  taxa_proxima: 0
+  taxa_distante: 0
+  pedido_minimo: 0
+  raio_proxima_metros: 500
+
+owners: []
+comissao_percentual: 5.0
+
+persona:
+  tom: "informal"
+  usa_emojis: true
+  saudacao: ""
+  despedida: ""
+
+branding:
+  cor_primaria: "#000000"
+  logo_url: null
+
+# FEATURES OPT-IN — todas desativadas por default
+recovery:
+  enabled: false
+  minutes_threshold: 15
+
+order_status_notifications:
+  enabled: false
+
+integracao_estoque:
+  ativo: false
+  sistema: null
+  sync_intervalo_minutos: 60
