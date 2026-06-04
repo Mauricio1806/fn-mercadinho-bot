@@ -70,3 +70,10 @@ async def get_tenant_scope(
     """Dependency que retorna o TenantScope do usuário atual."""
     tenant_id = get_tenant_id_from_user(user)
     return TenantScope(user=user, tenant_id=tenant_id)
+
+
+async def get_current_role(
+    user: AdminUser = Depends(get_current_admin),
+) -> str:
+    """Retorna o role do usuário logado: 'superadmin' ou 'tenant_admin'."""
+    return getattr(user, "role", "tenant_admin") or "tenant_admin"
