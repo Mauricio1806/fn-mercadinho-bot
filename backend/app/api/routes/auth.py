@@ -30,7 +30,7 @@ async def _build_token_payload(user: AdminUser, db: AsyncSession) -> dict:
     payload: dict = {
         "sub": str(user.id),
         "type": "access",
-        "role": user.role.value,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         "email": user.email,
         "full_name": user.full_name,
     }
@@ -67,7 +67,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
     result = await db.execute(select(AdminUser).where(AdminUser.email == body.email))
     user = result.scalar_one_or_none()
 
-    if not user or not pwd_context.verify(body.password, user.hashed_password):
+    if not user or not _bcrypt.checkpw(body.password.encode(), user.hashed_password.encode()):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos.",
