@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     start_scheduler()
     # Re-ativa recovery para tenants que tinham ativo antes do restart
     async with AsyncSessionLocal() as _db:
-        _r = await _db.execute(_select(Tenant).where(Tenant.active == True))
+        _r = await _db.execute(_select(Tenant).where(Tenant.is_active == True))
         for _t in _r.scalars().all():
             if (_t.config or {}).get('recovery', {}).get('enabled', False):
                 activate_recovery_for_tenant(_t.id, _t.config)
