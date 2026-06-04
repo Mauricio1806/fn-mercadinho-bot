@@ -15,7 +15,7 @@ import asyncio
 import logging
 import uuid
 
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import AsyncSessionLocal
@@ -24,7 +24,6 @@ from app.models.tenant import Tenant
 from app.tenancy.defaults import FN_MERCADINHO_UUID
 
 logger = logging.getLogger(__name__)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 FN_UUID = uuid.UUID(FN_MERCADINHO_UUID)
 PADARIA_UUID = uuid.UUID("00000000-0000-0000-0000-000000000002")
@@ -181,7 +180,7 @@ async def seed_tenants(session: AsyncSession) -> None:
 
         admin = AdminUser(
             email=a_data["email"],
-            hashed_password=pwd_context.hash(a_data["password"]),
+            hashed_password=bcrypt.hashpw(a_data["password"].encode() if isinstance(a_data["password"], str) else a_data["password"], bcrypt.gensalt()).decode(),
             full_name=a_data["full_name"],
             role=a_data["role"],
             tenant_id=a_data["tenant_id"],
