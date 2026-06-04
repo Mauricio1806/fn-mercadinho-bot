@@ -86,6 +86,7 @@ def create_app() -> FastAPI:
 
     # Rotas
     from app.api.routes.webhook import router as webhook_router
+    from app.api.routes.webhooks_mgmt import router as webhooks_mgmt_router
     from app.api.routes.recovery import router as recovery_router
     from app.api.routes.orders import router as orders_router
     from app.api.routes.products import router as products_router
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     from app.api.routes.integrations import router as integrations_router
 
     app.include_router(webhook_router, prefix="/webhook", tags=["webhook"])
+    app.include_router(webhooks_mgmt_router, prefix="/api/webhooks", tags=["webhooks"])
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
     app.include_router(orders_router, prefix="/api/orders", tags=["orders"])
     app.include_router(products_router, prefix="/api/products", tags=["products"])
