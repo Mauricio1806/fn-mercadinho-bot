@@ -3,7 +3,7 @@
 import uuid as _uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import jwt
 import bcrypt as _bcrypt
 from sqlalchemy import select
