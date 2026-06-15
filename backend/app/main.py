@@ -15,6 +15,9 @@ from app.database.session import engine
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Intervalo do scheduler de recovery (minutos)
+_RECOVERY_INTERVAL_MINUTES = 5
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,8 +39,35 @@ async def lifespan(app: FastAPI):
             except Exception:
                 logger.warning("Seed de tenants falhou — continuando sem seed.")
 
+    # ── APScheduler — cart recovery ──────────────────────────────────────────
+    scheduler = None
+    if settings.env != "test":
+        try:
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            from app.core.recovery.cart_recovery import run_recovery_cycle
+
+            scheduler = AsyncIOScheduler()
+            scheduler.add_job(
+                run_recovery_cycle,
+                trigger="interval",
+                minutes=_RECOVERY_INTERVAL_MINUTES,
+                id="cart_recovery",
+                replace_existing=True,
+                max_instances=1,
+            )
+            scheduler.start()
+            logger.info(
+                "⏰ Cart recovery scheduler iniciado (intervalo=%dmin)", _RECOVERY_INTERVAL_MINUTES
+            )
+        except Exception:
+            logger.exception("Falha ao iniciar scheduler de cart recovery — continuando sem ele.")
+
     logger.info("🏢 Plataforma multi-tenant pronta — ambiente: %s", settings.env)
     yield
+
+    if scheduler is not None:
+        scheduler.shutdown(wait=False)
+        logger.info("⏰ Cart recovery scheduler encerrado.")
 
     logger.info("👋 Atendê Platform encerrando...")
     await engine.dispose()
@@ -84,6 +114,7 @@ def create_app() -> FastAPI:
     from app.api.routes.ws import router as ws_router
     from app.api.routes.tenants import router as tenants_router
     from app.api.routes.integrations import router as integrations_router
+    from app.api.routes.inbound_payt import router as inbound_payt_router
 
     app.include_router(webhook_router, prefix="/webhook", tags=["webhook"])
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
@@ -96,6 +127,7 @@ def create_app() -> FastAPI:
     app.include_router(ws_router, prefix="/ws", tags=["websocket"])
     app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
     app.include_router(integrations_router, prefix="/api/integrations", tags=["integrations"])
+    app.include_router(inbound_payt_router, prefix="/api/webhooks/inbound", tags=["recovery"])
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict[str, str]:

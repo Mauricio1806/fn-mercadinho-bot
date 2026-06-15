@@ -21,6 +21,28 @@ from app.models.conversation import ConversationState
 
 logger = logging.getLogger(__name__)
 
+# Termos proibidos no nicho memória/cognição (backstop ANVISA — hardcoded)
+_MEMORY_NICHE_FORBIDDEN: frozenset[str] = frozenset([
+    "alzheimer",
+    "demência",
+    "demencia",
+    "cura",
+    "trata",
+    "doença",
+    "doenca",
+    "previne",
+    "recupera a memória",
+    "recupera a memoria",
+    "perda de memória",
+    "perda de memoria",
+    "garantia de resultado",
+])
+
+_COMPLIANCE_SAFE_RESPONSE = (
+    "Posso ajudar com informações sobre o produto. "
+    "Para dúvidas específicas sobre saúde, consulte um profissional."
+)
+
 # Estados em que detalhes de pedido/itens são esperados
 _ORDER_STATES = {
     ConversationState.ORDER_ITEMS,
@@ -54,27 +76,35 @@ def validate_response(
     state: ConversationState,
     order_ctx: OrderContext,
     business: BusinessConfig,
+    *,
+    memory_niche_compliance: bool = False,
 ) -> ValidationResult:
     """
     Ponto de entrada do checkpoint de qualidade.
 
     Executa todas as verificações em ordem de criticidade:
-      1. Guard de dados Pix/sensíveis (pode modificar resposta)
-      2. Coerência de estado (apenas log)
-      3. Sanity check de preços contra catálogo (apenas log)
-      4. Validação de blocos de entrega mencionados (apenas log)
+      1. Compliance de nicho memória/cognição (backstop ANVISA — substitui resposta)
+      2. Guard de dados Pix/sensíveis (pode modificar resposta)
+      3. Coerência de estado (apenas log)
+      4. Sanity check de preços contra catálogo (apenas log)
+      5. Validação de blocos de entrega mencionados (apenas log)
 
     Args:
-        response:   Texto bruto retornado pelo Claude.
-        state:      Estado atual da conversa.
-        order_ctx:  Contexto do pedido em andamento.
-        business:   Config do negócio.
+        response:                 Texto bruto retornado pelo Claude.
+        state:                    Estado atual da conversa.
+        order_ctx:                Contexto do pedido em andamento.
+        business:                 Config do negócio.
+        memory_niche_compliance:  Ativa o backstop ANVISA para nicho memória/cognição.
 
     Returns:
         ValidationResult com a resposta segura e lista de issues para auditoria.
     """
     issues: list[str] = []
     text = response
+
+    if memory_niche_compliance:
+        text, compliance_issues = _check_memory_compliance(text)
+        issues.extend(compliance_issues)
 
     text, pix_issues = _check_pix_guard(text, state, business)
     issues.extend(pix_issues)
@@ -98,6 +128,24 @@ def validate_response(
         issues=issues,
         was_modified=was_modified,
     )
+
+
+# ── Verificação 0: compliance nicho memória/cognição ─────────────────────────
+
+def _check_memory_compliance(text: str) -> tuple[str, list[str]]:
+    """
+    Backstop ANVISA para nicho memória/cognição.
+
+    Se qualquer termo proibido aparecer na resposta, substitui o texto inteiro
+    por uma resposta segura pré-aprovada. Comparação case-insensitive.
+    """
+    lower = text.lower()
+    hits = [term for term in _MEMORY_NICHE_FORBIDDEN if term in lower]
+    if not hits:
+        return text, []
+
+    issues = [f"COMPLIANCE: termo proibido detectado: {', '.join(hits)}"]
+    return _COMPLIANCE_SAFE_RESPONSE, issues
 
 
 # ── Verificação 1: guard de dados Pix ─────────────────────────────────────────

@@ -104,6 +104,20 @@ async def resolve_tenant_by_id(
     return TenantContext.from_orm(tenant)
 
 
+async def resolve_tenant_by_slug(
+    slug: str,
+    db: AsyncSession,
+) -> TenantContext | None:
+    """Resolve o tenant pelo slug (usado em webhooks inbound identificados por URL)."""
+    result = await db.execute(
+        select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)  # noqa: E712
+    )
+    tenant = result.scalar_one_or_none()
+    if tenant is None:
+        return None
+    return TenantContext.from_orm(tenant)
+
+
 def invalidate_cache(number: str | None = None) -> None:
     """Invalida cache para um número ou todo o cache se number=None."""
     if number is None:

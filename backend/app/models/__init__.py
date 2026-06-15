@@ -6,6 +6,7 @@ from app.models.message import Message, MessageDirection
 from app.models.admin_user import AdminUser, AdminRole
 from app.models.pix_receipt_log import PixReceiptLog
 from app.models.tenant import Tenant
+from app.models.recoverable_sale import RecoverableSale, RecoverySaleStatus, RecoveryFunnelStage
 
 __all__ = [
     "Tenant",
@@ -22,4 +23,7 @@ __all__ = [
     "AdminUser",
     "AdminRole",
     "PixReceiptLog",
+    "RecoverableSale",
+    "RecoverySaleStatus",
+    "RecoveryFunnelStage",
 ]
