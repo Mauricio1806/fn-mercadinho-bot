@@ -150,3 +150,79 @@ async def trigger_full_sync(
         "updated": sync_result.updated,
         "errors": sync_result.errors[:10],
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Config da integração ativa — gerenciada pelo próprio tenant_admin
+# ═══════════════════════════════════════════════════════════════════════
+
+def _mask_integration_secrets(integration: dict) -> dict:
+    """Esconde api_key na resposta (preview com últimos 4 chars)."""
+    safe = {**integration}
+    api_key = safe.pop("api_key", None)
+    safe["api_key_set"] = bool(api_key)
+    if api_key:
+        safe["api_key_preview"] = "•••• " + str(api_key)[-4:]
+    return safe
+
+
+@router.get("/{tenant_id}/config")
+async def get_integration_config(
+    tenant_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: AdminUser = Depends(get_current_tenant_admin),
+) -> dict:
+    """Retorna integracao_estoque do tenant atual (sem expor api_key crua)."""
+    scope.assert_owns_tenant(tenant_id)
+
+    from sqlalchemy import select
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant não encontrado."
+        )
+
+    integracao = (tenant.config or {}).get(
+        "integracao_estoque", {"ativo": False, "sistema": None}
+    )
+    return _mask_integration_secrets(integracao)
+
+
+@router.put("/{tenant_id}/config")
+async def update_integration_config(
+    tenant_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: AdminUser = Depends(get_current_tenant_admin),
+) -> dict:
+    """
+    Merge parcial em tenant.config.integracao_estoque.
+    Se 'api_key' vier vazio/None, mantém o existente (evita apagar token sem querer).
+    """
+    scope.assert_owns_tenant(tenant_id)
+
+    from sqlalchemy import select
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant não encontrado."
+        )
+
+    existing = tenant.config or {}
+    existing_int = existing.get("integracao_estoque", {})
+    if body.get("api_key") in (None, ""):
+        body.pop("api_key", None)
+    merged = {**existing_int, **body}
+    tenant.config = {**existing, "integracao_estoque": merged}
+
+    await db.commit()
+
+    from app.tenancy.resolver import invalidate_cache
+    if tenant.whatsapp_number:
+        invalidate_cache(tenant.whatsapp_number)
+
+    return _mask_integration_secrets(merged)

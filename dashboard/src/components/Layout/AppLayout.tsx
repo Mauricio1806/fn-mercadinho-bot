@@ -1,73 +1,120 @@
 /**
- * Layout principal com sidebar e header.
+ * AppLayout — sidebar com navegação + bloco do usuário + logout.
+ * Itens de menu se adaptam ao role (tenant_admin vs superadmin).
  */
 
-import { type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard, ShoppingCart, Package, Users, MessageCircle, LogOut
-} from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { useBranding } from "@/providers/BrandingProvider";
-import { logout, isSuperAdmin } from "@/lib/auth";
+import { getCurrentUser, isSuperAdmin, logout } from "@/lib/auth";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  MessageCircle,
+  Package,
+  Users,
+  Settings as SettingsIcon,
+  Webhook,
+  Building2,
+  LogOut,
+} from "lucide-react";
+import type { ReactNode } from "react";
 
-const TENANT_NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/orders", label: "Pedidos", icon: ShoppingCart },
-  { href: "/products", label: "Produtos", icon: Package },
-  { href: "/customers", label: "Clientes", icon: Users },
-  { href: "/conversations", label: "Conversas", icon: MessageCircle },
+interface NavLinkItem {
+  to: string;
+  label: string;
+  icon: ReactNode;
+}
+
+const tenantNav: NavLinkItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={16} /> },
+  { to: "/orders", label: "Pedidos", icon: <ShoppingBag size={16} /> },
+  { to: "/conversations", label: "Conversas", icon: <MessageCircle size={16} /> },
+  { to: "/products", label: "Produtos", icon: <Package size={16} /> },
+  { to: "/customers", label: "Clientes", icon: <Users size={16} /> },
+  { to: "/settings", label: "Configurações", icon: <SettingsIcon size={16} /> },
 ];
 
-const ADMIN_NAV = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+const adminNav: NavLinkItem[] = [
+  { to: "/admin/dashboard", label: "Visão Geral", icon: <LayoutDashboard size={16} /> },
+  { to: "/admin/tenants", label: "Tenants", icon: <Building2 size={16} /> },
+  { to: "/admin/webhooks", label: "Webhooks", icon: <Webhook size={16} /> },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
-  const { tenantName, corPrimaria, logoUrl } = useBranding();
-  const { pathname } = useLocation();
+  const branding = useBranding();
+  const user = getCurrentUser();
   const isAdmin = isSuperAdmin();
-  const navItems = isAdmin ? ADMIN_NAV : TENANT_NAV;
+  const items = isAdmin ? adminNav : tenantNav;
 
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        {/* Logo */}
+        {/* Brand */}
         <div className="sidebar-logo">
-          {logoUrl ? (
-            <img src={logoUrl} alt={tenantName} style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover" }} />
+          {branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.tenantName}
+              style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover" }}
+            />
           ) : (
-            <div className="sidebar-logo-icon" style={{ background: corPrimaria }}>
-              {tenantName.charAt(0)}
+            <div className="sidebar-logo-icon">
+              {branding.tenantName.charAt(0).toUpperCase()}
             </div>
           )}
-          <span className="sidebar-logo-text">{tenantName}</span>
+          <span className="sidebar-logo-text">{branding.tenantName}</span>
         </div>
 
-        {/* Navigation */}
-        <nav style={{ flex: 1 }}>
-          {navItems.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              to={href}
-              className={`nav-item ${pathname === href ? "active" : ""}`}
-              id={`nav-${href.replace("/", "").replace("/", "-")}`}
+        {/* Nav */}
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+          {items.map((it) => (
+            <NavLink
+              key={it.to}
+              to={it.to}
+              className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
             >
-              <Icon size={17} />
-              {label}
-            </Link>
+              {it.icon}
+              <span>{it.label}</span>
+            </NavLink>
           ))}
         </nav>
 
-        {/* Logout */}
-        <button id="btn-logout" className="nav-item" onClick={logout} style={{ marginTop: "auto" }}>
-          <LogOut size={17} />
-          Sair
-        </button>
+        {/* Usuário + logout */}
+        <div style={{
+          borderTop: "1px solid var(--color-border)",
+          paddingTop: 16,
+          marginTop: 16,
+        }}>
+          <div style={{
+            padding: "0 12px 12px",
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+          }}>
+            <div style={{
+              fontWeight: 600,
+              color: "var(--color-text)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}>
+              {user?.full_name ?? "—"}
+            </div>
+            <div style={{ marginTop: 2 }}>
+              {isAdmin ? "Superadmin" : "Administrador"}
+            </div>
+          </div>
+          <button
+            className="nav-item"
+            onClick={logout}
+            style={{ color: "var(--color-error)" }}
+          >
+            <LogOut size={16} />
+            <span>Sair</span>
+          </button>
+        </div>
       </aside>
 
-      <main className="main-content">
-        {children}
-      </main>
+      <main className="main-content">{children}</main>
     </div>
   );
 }

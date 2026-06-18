@@ -1,27 +1,33 @@
 /**
- * API client — Axios com interceptors JWT e base URL configurável.
+ * API client — Axios com interceptors JWT e tipagem forte.
  */
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
+import type {
+  DashboardStats,
+  ConsolidatedStats,
+  SalesEntry,
+  Order,
+  OrderStatus,
+  Product,
+  IntegrationConfig,
+  SyncResult,
+} from "./types";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 15_000,
+  timeout: 30_000,
   headers: { "Content-Type": "application/json" },
 });
 
-// ── Interceptor: injeta token JWT em todo request ──────────────────────
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// ── Interceptor: trata 401 e redireciona para login ───────────────────
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -35,14 +41,11 @@ api.interceptors.response.use(
           const { access_token, refresh_token } = resp.data;
           localStorage.setItem("access_token", access_token);
           localStorage.setItem("refresh_token", refresh_token);
-
-          // Retry da requisição original
           if (error.config) {
             error.config.headers.Authorization = `Bearer ${access_token}`;
             return api.request(error.config);
           }
         } catch {
-          // Refresh falhou — limpa sessão
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           window.location.href = "/login";
@@ -55,51 +58,104 @@ api.interceptors.response.use(
   }
 );
 
-// ── Helpers tipados ────────────────────────────────────────────────────
-
+// ── Auth ───────────────────────────────────────────────────────────────
 export async function login(email: string, password: string) {
-  const resp = await api.post<{
-    access_token: string;
-    refresh_token: string;
-  }>("/api/auth/login", { email, password });
+  const resp = await api.post<{ access_token: string; refresh_token: string }>(
+    "/api/auth/login",
+    { email, password }
+  );
   return resp.data;
 }
 
-export async function getStats() {
-  const resp = await api.get("/api/dashboard/stats");
+// ── Dashboard ──────────────────────────────────────────────────────────
+export async function getStats(): Promise<DashboardStats> {
+  const resp = await api.get<DashboardStats>("/api/dashboard/stats");
   return resp.data;
 }
 
-export async function getOrders(params?: Record<string, unknown>) {
-  const resp = await api.get("/api/orders/", { params });
+export async function getConsolidatedStats(): Promise<ConsolidatedStats> {
+  const resp = await api.get<ConsolidatedStats>("/api/dashboard/consolidated");
   return resp.data;
 }
 
-export async function updateOrderStatus(orderId: string, status: string) {
-  const resp = await api.patch(`/api/orders/${orderId}/status`, { status });
-  return resp.data;
-}
-
-export async function getProducts() {
-  const resp = await api.get("/api/products/");
-  return resp.data;
-}
-
-export async function importCSV(tenantId: string, file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-  const resp = await api.post(`/api/integrations/${tenantId}/csv`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+export async function getSales(limit = 50): Promise<SalesEntry[]> {
+  const resp = await api.get<SalesEntry[]>("/api/dashboard/sales", {
+    params: { limit },
   });
   return resp.data;
 }
 
-export async function getTenants() {
-  const resp = await api.get("/api/tenants/");
+// ── Pedidos ────────────────────────────────────────────────────────────
+export async function getOrders(params?: {
+  status_filter?: OrderStatus;
+  limit?: number;
+  offset?: number;
+}): Promise<Order[]> {
+  const resp = await api.get<Order[]>("/api/orders/", { params });
   return resp.data;
 }
 
-export async function getConsolidatedStats() {
-  const resp = await api.get("/api/dashboard/consolidated");
+export async function getOrder(orderId: string): Promise<Order> {
+  const resp = await api.get<Order>(`/api/orders/${orderId}`);
+  return resp.data;
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus
+): Promise<Order> {
+  const resp = await api.patch<Order>(`/api/orders/${orderId}/status`, { status });
+  return resp.data;
+}
+
+// ── Produtos ───────────────────────────────────────────────────────────
+export async function getProducts(): Promise<Product[]> {
+  const resp = await api.get<Product[]>("/api/products/");
+  return resp.data;
+}
+
+// ── Integrações ────────────────────────────────────────────────────────
+export async function getIntegrationConfig(
+  tenantId: string
+): Promise<IntegrationConfig> {
+  const resp = await api.get<IntegrationConfig>(
+    `/api/integrations/${tenantId}/config`
+  );
+  return resp.data;
+}
+
+export async function updateIntegrationConfig(
+  tenantId: string,
+  body: Partial<IntegrationConfig> & { api_key?: string }
+): Promise<IntegrationConfig> {
+  const resp = await api.put<IntegrationConfig>(
+    `/api/integrations/${tenantId}/config`,
+    body
+  );
+  return resp.data;
+}
+
+export async function triggerSync(tenantId: string): Promise<SyncResult> {
+  const resp = await api.post<SyncResult>(`/api/integrations/${tenantId}/sync`);
+  return resp.data;
+}
+
+export async function importCSV(
+  tenantId: string,
+  file: File
+): Promise<SyncResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const resp = await api.post<SyncResult>(
+    `/api/integrations/${tenantId}/csv`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return resp.data;
+}
+
+// ── Tenants (superadmin) ───────────────────────────────────────────────
+export async function getTenants() {
+  const resp = await api.get("/api/tenants/");
   return resp.data;
 }

@@ -28,7 +28,13 @@ export function Login({ onSuccess }: LoginProps) {
       saveTokens(access_token, refresh_token);
       onSuccess();
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail ?? "Email ou senha incorretos.");
+      if (!err?.response) {
+        toast.error("Sem conexao com o servidor. Confere VITE_API_URL e se o backend esta no ar.");
+      } else if (err.response.status === 401) {
+        toast.error(err.response.data?.detail ?? "Email ou senha incorretos.");
+      } else {
+        toast.error(err.response.data?.detail ?? `Erro ${err.response.status}`);
+      }
     } finally {
       setLoading(false);
     }

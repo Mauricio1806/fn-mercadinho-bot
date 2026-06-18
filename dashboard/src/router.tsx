@@ -34,7 +34,7 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login onSuccess={handleLogin} />} />
+        <Route path="/login" element={isAuthenticated() ? <Navigate to="/" replace /> : <Login onSuccess={handleLogin} />} />
         <Route path="/" element={<RoleRedirect />} />
 
         {/* Tenant Admin */}
