@@ -57,16 +57,21 @@ async def get_current_admin(
     return user
 
 
+PLATFORM_OWNER_TENANT_ID = "00000000-0000-0000-0000-000000000001"
+
+
 async def get_current_superadmin(
     user: AdminUser = Depends(get_current_admin),
 ) -> AdminUser:
-    """Dependency: exige role superadmin."""
-    if user.role != AdminRole.SUPERADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso restrito a superadmins.",
-        )
-    return user
+    """Dependency: exige role superadmin OU tenant_admin do tenant da plataforma (FN)."""
+    if user.role == AdminRole.SUPERADMIN:
+        return user
+    if user.role == AdminRole.TENANT_ADMIN and str(user.tenant_id) == PLATFORM_OWNER_TENANT_ID:
+        return user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Acesso restrito ao owner da plataforma.",
+    )
 
 
 async def get_current_tenant_admin(
