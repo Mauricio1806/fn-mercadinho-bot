@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.middleware.auth import get_current_superadmin
+from app.api.middleware.tenant_scope import TenantScope, get_tenant_scope
+from app.api.middleware.auth import get_current_superadmin, get_current_tenant_admin
 from app.database.session import get_db
 from app.models.admin_user import AdminUser
 from app.models.tenant import Tenant
@@ -14,6 +15,74 @@ from app.schemas.tenant import TenantCreate, TenantOut, TenantSummary, TenantUpd
 from app.tenancy.resolver import invalidate_cache
 
 router = APIRouter()
+
+@router.get("/me")
+async def get_my_tenant(
+    db: AsyncSession = Depends(get_db),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: AdminUser = Depends(get_current_tenant_admin),
+) -> dict:
+    """Tenant admin retorna o próprio tenant + config."""
+    if not scope.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Superadmin: use /tenants/{tenant_id}",
+        )
+    result = await db.execute(select(Tenant).where(Tenant.id == scope.tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant não encontrado.")
+    return {
+        "id": str(tenant.id),
+        "slug": tenant.slug,
+        "name": tenant.name,
+        "whatsapp_number": tenant.whatsapp_number,
+        "config": tenant.config or {},
+    }
+
+
+@router.put("/me")
+async def update_my_tenant(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: AdminUser = Depends(get_current_tenant_admin),
+) -> dict:
+    """
+    Tenant admin atualiza o próprio tenant.
+    Aceita { name?: str, config?: dict } — config faz merge shallow nas chaves top-level.
+    Cada aba do Settings manda a SEÇÃO INTEIRA que está editando.
+    """
+    if not scope.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Superadmin: use /tenants/{tenant_id}",
+        )
+    result = await db.execute(select(Tenant).where(Tenant.id == scope.tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant não encontrado.")
+
+    if "name" in body and isinstance(body["name"], str) and body["name"].strip():
+        tenant.name = body["name"].strip()
+    if "config" in body and isinstance(body["config"], dict):
+        existing = tenant.config or {}
+        tenant.config = {**existing, **body["config"]}
+
+    await db.commit()
+
+    from app.tenancy.resolver import invalidate_cache
+    if tenant.whatsapp_number:
+        invalidate_cache(tenant.whatsapp_number)
+
+    return {
+        "id": str(tenant.id),
+        "slug": tenant.slug,
+        "name": tenant.name,
+        "whatsapp_number": tenant.whatsapp_number,
+        "config": tenant.config or {},
+    }
+
 
 
 @router.get("/", response_model=list[TenantSummary])

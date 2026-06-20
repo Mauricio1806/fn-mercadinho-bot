@@ -103,3 +103,58 @@ export interface SyncResult {
   total_processed?: number;
   errors: string[];
 }
+
+
+export interface TenantHorario {
+  abertura?: string;
+  fechamento?: string;
+  domingo_abertura?: string;
+  domingo_fechamento?: string;
+  dias?: string;
+  msg_fora_horario?: string;
+}
+
+export interface TenantDelivery {
+  taxa_proxima?: number;
+  taxa_distante?: number;
+  raio_proxima_metros?: number;
+  pedido_minimo?: number;
+  tempo_estimado?: string;
+}
+
+export interface TenantPersona {
+  tom?: "formal" | "informal";
+  usa_emojis?: boolean;
+  saudacao?: string;
+  despedida?: string;
+  tratamento?: "você" | "senhor" | string;
+}
+
+export interface TenantBranding {
+  cor_primaria?: string;
+  cor_secundaria?: string;
+  logo_url?: string | null;
+}
+
+export interface TenantConfig {
+  endereco?: string;
+  pix_chave?: string;
+  pix_tipo_chave?: "cnpj" | "cpf" | "email" | "telefone" | "aleatoria" | string;
+  pix_titular?: string;
+  pix_banco?: string;
+  owners?: string[];
+  horario?: TenantHorario;
+  delivery?: TenantDelivery;
+  persona?: TenantPersona;
+  branding?: TenantBranding;
+  integracao_estoque?: IntegrationConfig;
+  [key: string]: unknown;
+}
+
+export interface MyTenant {
+  id: string;
+  slug: string;
+  name: string;
+  whatsapp_number: string | null;
+  config: TenantConfig;
+}

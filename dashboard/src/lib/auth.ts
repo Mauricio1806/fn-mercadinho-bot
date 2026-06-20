@@ -47,13 +47,17 @@ export function getTenantId(): string | null {
   return getCurrentUser()?.tenant_id ?? null;
 }
 
+const DEFAULT_BRANDING = {
+  cor_primaria: "#1976D2",
+  cor_secundaria: "#FFC107",
+  logo_url: null,
+  tenant_name: "Atendê Platform",
+};
+
 export function getBranding() {
-  return getCurrentUser()?.branding ?? {
-    cor_primaria: "#1976D2",
-    cor_secundaria: "#FFC107",
-    logo_url: null,
-    tenant_name: "Atendê Platform",
-  };
+  // Só usa branding do JWT se o token ainda for válido — senão volta pro default
+  if (!isAuthenticated()) return DEFAULT_BRANDING;
+  return getCurrentUser()?.branding ?? DEFAULT_BRANDING;
 }
 
 export function isAuthenticated(): boolean {

@@ -4,6 +4,8 @@
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import type {
+  MyTenant,
+  TenantConfig,
   DashboardStats,
   ConsolidatedStats,
   SalesEntry,
@@ -157,5 +159,19 @@ export async function importCSV(
 // ── Tenants (superadmin) ───────────────────────────────────────────────
 export async function getTenants() {
   const resp = await api.get("/api/tenants/");
+  return resp.data;
+}
+
+
+// ── Tenant self (tenant_admin gerencia o próprio) ──────────────────────
+export async function getMyTenant(): Promise<MyTenant> {
+  const resp = await api.get<MyTenant>("/api/tenants/me");
+  return resp.data;
+}
+
+export async function updateMyTenant(
+  body: { name?: string; config?: Partial<TenantConfig> }
+): Promise<MyTenant> {
+  const resp = await api.put<MyTenant>("/api/tenants/me", body);
   return resp.data;
 }
