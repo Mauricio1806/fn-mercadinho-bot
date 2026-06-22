@@ -158,3 +158,77 @@ export interface MyTenant {
   whatsapp_number: string | null;
   config: TenantConfig;
 }
+
+
+export interface TenantSummary {
+  id: string;
+  slug: string;
+  name: string;
+  whatsapp_number: string | null;
+  is_active: boolean;
+  created_at?: string;
+}
+
+// ── Customers ──────────────────────────────────────────────────────────
+
+export interface Customer {
+  id: string;
+  tenant_id?: string;
+  phone: string;
+  name: string | null;
+  building_block: string | null;
+  apartment: string | null;
+  notes: string | null;
+  is_blocked: boolean;
+  total_orders: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CustomerUpdate {
+  name?: string | null;
+  building_block?: string | null;
+  apartment?: string | null;
+  notes?: string | null;
+  is_blocked?: boolean;
+}
+
+// ── Conversations & Messages ───────────────────────────────────────────
+
+export type ConversationStatus = "active" | "waiting" | "human" | "closed";
+
+export type ConversationState =
+  | "greeting"
+  | "main_menu"
+  | "order_items"
+  | "order_confirm"
+  | "order_delivery"
+  | "order_payment"
+  | "payment_receipt"
+  | "delivery_info"
+  | "hours_info"
+  | "free_chat"
+  | "closed";
+
+export interface Conversation {
+  id: string;
+  customer_id: string;
+  customer_phone: string | null;
+  customer_name: string | null;
+  status: ConversationStatus;
+  state: ConversationState;
+  message_count: number;
+  last_message: string | null;
+  created_at: string;
+}
+
+export type MessageDirection = "inbound" | "outbound";
+
+export interface Message {
+  id: string;
+  direction: MessageDirection;
+  content: string;
+  is_ai_generated: boolean;
+  tokens_used: number | null;
+  created_at: string | null;
+}

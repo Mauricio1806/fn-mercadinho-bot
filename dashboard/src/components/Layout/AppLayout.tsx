@@ -5,7 +5,7 @@
 
 import { NavLink } from "react-router-dom";
 import { useBranding } from "@/providers/BrandingProvider";
-import { getCurrentUser, isSuperAdmin, logout } from "@/lib/auth";
+import { logout } from "@/lib/auth";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -13,8 +13,7 @@ import {
   Package,
   Users,
   Settings as SettingsIcon,
-  Webhook,
-  Building2,
+  HelpCircle,
   LogOut,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -32,19 +31,13 @@ const tenantNav: NavLinkItem[] = [
   { to: "/products", label: "Produtos", icon: <Package size={16} /> },
   { to: "/customers", label: "Clientes", icon: <Users size={16} /> },
   { to: "/settings", label: "Configurações", icon: <SettingsIcon size={16} /> },
+  { to: "/ajuda", label: "Ajuda", icon: <HelpCircle size={16} /> },
 ];
 
-const adminNav: NavLinkItem[] = [
-  { to: "/admin/dashboard", label: "Visão Geral", icon: <LayoutDashboard size={16} /> },
-  { to: "/admin/tenants", label: "Tenants", icon: <Building2 size={16} /> },
-  { to: "/admin/webhooks", label: "Webhooks", icon: <Webhook size={16} /> },
-];
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const branding = useBranding();
-  const user = getCurrentUser();
-  const isAdmin = isSuperAdmin();
-  const items = isAdmin ? adminNav : tenantNav;
+  const items = tenantNav;
 
   return (
     <div className="app-layout">
@@ -97,10 +90,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}>
-              {user?.full_name ?? "—"}
+              Admin Atendê
             </div>
             <div style={{ marginTop: 2 }}>
-              {isAdmin ? "Superadmin" : "Administrador"}
+              Administrador
             </div>
           </div>
           <button

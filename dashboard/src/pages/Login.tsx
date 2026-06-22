@@ -26,7 +26,8 @@ export function Login({ onSuccess }: LoginProps) {
     try {
       const { access_token, refresh_token } = await apiLogin(email, password);
       saveTokens(access_token, refresh_token);
-      onSuccess();
+      // Full reload pro BrandingProvider re-ler o JWT com o branding do tenant
+      window.location.href = "/";
     } catch (err: any) {
       if (!err?.response) {
         toast.error("Sem conexao com o servidor. Confere VITE_API_URL e se o backend esta no ar.");

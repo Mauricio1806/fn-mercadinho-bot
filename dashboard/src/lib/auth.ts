@@ -57,6 +57,8 @@ const DEFAULT_BRANDING = {
 export function getBranding() {
   // Só usa branding do JWT se o token ainda for válido — senão volta pro default
   if (!isAuthenticated()) return DEFAULT_BRANDING;
+  // Platform owner sempre vê "Atendê Platform", nunca o branding do tenant
+  if (isPlatformOwner()) return DEFAULT_BRANDING;
   return getCurrentUser()?.branding ?? DEFAULT_BRANDING;
 }
 
@@ -75,4 +77,19 @@ export function logout(): void {
 export function saveTokens(access_token: string, refresh_token: string): void {
   localStorage.setItem("access_token", access_token);
   localStorage.setItem("refresh_token", refresh_token);
+}
+
+const PLATFORM_OWNER_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
+export function isPlatformOwner(): boolean {
+  const payload = getTokenPayload();
+  if (!payload) return false;
+  if (payload.role === "superadmin") return true;
+  if (
+    payload.role === "tenant_admin" &&
+    payload.tenant_id === PLATFORM_OWNER_TENANT_ID
+  ) {
+    return true;
+  }
+  return false;
 }

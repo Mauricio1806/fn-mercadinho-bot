@@ -6,6 +6,7 @@ import axios, { AxiosError, type AxiosInstance } from "axios";
 import type {
   MyTenant,
   TenantConfig,
+  TenantSummary,
   DashboardStats,
   ConsolidatedStats,
   SalesEntry,
@@ -14,6 +15,11 @@ import type {
   Product,
   IntegrationConfig,
   SyncResult,
+  Customer,
+  CustomerUpdate,
+  Conversation,
+  ConversationStatus,
+  Message,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
@@ -157,8 +163,31 @@ export async function importCSV(
 }
 
 // ── Tenants (superadmin) ───────────────────────────────────────────────
-export async function getTenants() {
-  const resp = await api.get("/api/tenants/");
+export async function getTenants(): Promise<TenantSummary[]> {
+  const resp = await api.get<TenantSummary[]>("/api/tenants/?include_inactive=true");
+  return resp.data;
+}
+
+export async function createTenant(body: {
+  slug: string;
+  name: string;
+  whatsapp_number?: string;
+  config?: Record<string, unknown>;
+}): Promise<TenantSummary> {
+  const resp = await api.post<TenantSummary>("/api/tenants/", body);
+  return resp.data;
+}
+
+export async function updateTenant(
+  tenantId: string,
+  body: {
+    name?: string;
+    whatsapp_number?: string;
+    is_active?: boolean;
+    config?: Record<string, unknown>;
+  }
+): Promise<TenantSummary> {
+  const resp = await api.patch<TenantSummary>(`/api/tenants/${tenantId}`, body);
   return resp.data;
 }
 
@@ -170,8 +199,58 @@ export async function getMyTenant(): Promise<MyTenant> {
 }
 
 export async function updateMyTenant(
-  body: { name?: string; config?: Partial<TenantConfig> }
+  body: { name?: string; config?: Partial<TenantConfig> },
+  tenantId?: string | null
 ): Promise<MyTenant> {
+  if (tenantId) {
+    const resp = await api.patch<MyTenant>(`/api/tenants/${tenantId}`, body);
+    return resp.data;
+  }
   const resp = await api.put<MyTenant>("/api/tenants/me", body);
   return resp.data;
+}
+
+export async function getTenantDetail(tenantId: string): Promise<MyTenant> {
+  const resp = await api.get<MyTenant>(`/api/tenants/${tenantId}`);
+  return resp.data;
+}
+
+// ── Customers ──────────────────────────────────────────────────────────
+export async function getCustomers(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<Customer[]> {
+  const resp = await api.get<Customer[]>("/api/customers/", { params });
+  return resp.data;
+}
+
+export async function getCustomer(id: string): Promise<Customer> {
+  const resp = await api.get<Customer>(`/api/customers/${id}`);
+  return resp.data;
+}
+
+export async function updateCustomer(
+  id: string,
+  body: CustomerUpdate
+): Promise<Customer> {
+  const resp = await api.patch<Customer>(`/api/customers/${id}`, body);
+  return resp.data;
+}
+
+// ── Conversations ──────────────────────────────────────────────────────
+export async function getConversations(params?: {
+  status_filter?: ConversationStatus;
+  limit?: number;
+}): Promise<Conversation[]> {
+  const resp = await api.get<Conversation[]>("/api/conversations/", { params });
+  return resp.data;
+}
+
+export async function getConversationMessages(id: string): Promise<Message[]> {
+  const resp = await api.get<Message[]>(`/api/conversations/${id}/messages`);
+  return resp.data;
+}
+
+export async function takeoverConversation(id: string): Promise<void> {
+  await api.post(`/api/conversations/${id}/takeover`);
 }
