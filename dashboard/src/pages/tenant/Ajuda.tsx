@@ -9,14 +9,14 @@ export function Ajuda() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Ajuda</h1>
-          <p className="page-subtitle">Como funciona o Atendê e onde tirar dúvidas</p>
+          <p className="page-subtitle">Como funciona o Mercazap e onde tirar dúvidas</p>
         </div>
       </div>
 
       <div className="card" style={{ padding: 20, maxWidth: 720, marginTop: 16 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 0 }}>Como funciona</h2>
         <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--color-text)" }}>
-          O Atendê é um bot de WhatsApp que atende seus clientes automaticamente.
+          O Mercazap é um bot de WhatsApp que atende seus clientes automaticamente.
           Recebe pedidos, calcula frete, gera o Pix, confirma o pagamento e avisa
           quando o pedido sai pra entrega — tudo na mesma conversa do WhatsApp.
         </p>

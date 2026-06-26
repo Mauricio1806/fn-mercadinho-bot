@@ -1,5 +1,5 @@
 /**
- * Tipos centralizados do domínio Atendê.
+ * Tipos centralizados do domínio Mercazap.
  */
 
 export type OrderStatus =

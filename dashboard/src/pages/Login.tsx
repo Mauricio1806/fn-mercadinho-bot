@@ -146,7 +146,7 @@ export function Login({ onSuccess }: LoginProps) {
           </form>
 
           <p className="login-footer">
-            Atendê Platform · Acesso seguro
+            Mercazap · Acesso seguro
           </p>
         </div>
       </div>

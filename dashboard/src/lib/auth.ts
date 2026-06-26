@@ -51,13 +51,13 @@ const DEFAULT_BRANDING = {
   cor_primaria: "#1976D2",
   cor_secundaria: "#FFC107",
   logo_url: null,
-  tenant_name: "Atendê Platform",
+  tenant_name: "Mercazap",
 };
 
 export function getBranding() {
   // Só usa branding do JWT se o token ainda for válido — senão volta pro default
   if (!isAuthenticated()) return DEFAULT_BRANDING;
-  // Platform owner sempre vê "Atendê Platform", nunca o branding do tenant
+  // Platform owner sempre vê "Mercazap", nunca o branding do tenant
   if (isPlatformOwner()) return DEFAULT_BRANDING;
   return getCurrentUser()?.branding ?? DEFAULT_BRANDING;
 }

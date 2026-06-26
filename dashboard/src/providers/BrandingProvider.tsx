@@ -16,7 +16,7 @@ interface BrandingContextValue {
 }
 
 const BrandingContext = createContext<BrandingContextValue>({
-  tenantName: "Atendê Platform",
+  tenantName: "Mercazap",
   corPrimaria: "#1976D2",
   corSecundaria: "#FFC107",
   logoUrl: null,

@@ -1,7 +1,7 @@
 {
-  "name": "atende-dashboard",
+  "name": "mercazap-dashboard",
   "version": "2.0.0",
-  "description": "Atendê Platform — Admin Dashboard (Multi-tenant)",
+  "description": "Mercazap — Admin Dashboard (Multi-tenant)",
   "private": true,
   "type": "module",
   "scripts": {

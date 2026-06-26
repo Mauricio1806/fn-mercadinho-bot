@@ -90,7 +90,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}>
-              Admin Atendê
+              Admin Mercazap
             </div>
             <div style={{ marginTop: 2 }}>
               Administrador
