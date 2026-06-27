@@ -17,6 +17,7 @@ import { Conversations } from "@/pages/tenant/Conversations";
 import { Ajuda } from "@/pages/tenant/Ajuda";
 import { TrocarSenha } from "@/pages/TrocarSenha";
 import { Usuarios } from "@/pages/admin/Usuarios";
+import { MinhaConta } from "@/pages/MinhaConta";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
@@ -100,6 +101,7 @@ export function AppRouter() {
         <Route path="/settings" element={<RequireAuth><AppLayout><Settings /></AppLayout></RequireAuth>} />
         <Route path="/ajuda" element={<RequireAuth><AppLayout><Ajuda /></AppLayout></RequireAuth>} />
         <Route path="/trocar-senha" element={isAuthenticated() ? <TrocarSenha /> : <Navigate to="/login" replace />} />
+        <Route path="/minha-conta" element={<RequireAuth><AppLayout><MinhaConta /></AppLayout></RequireAuth>} />
         <Route path="/usuarios" element={<RequirePlatformOwner><AppLayout><Usuarios /></AppLayout></RequirePlatformOwner>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

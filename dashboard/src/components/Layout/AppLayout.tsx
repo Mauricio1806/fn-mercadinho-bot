@@ -14,6 +14,7 @@ import {
   Users,
   Settings as SettingsIcon,
   HelpCircle,
+  UserCircle,
   Users as UsersIcon2,
   LogOut,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const tenantNav: NavLinkItem[] = [
   { to: "/customers", label: "Clientes", icon: <Users size={16} /> },
   { to: "/settings", label: "Configurações", icon: <SettingsIcon size={16} /> },
   { to: "/ajuda", label: "Ajuda", icon: <HelpCircle size={16} /> },
+  { to: "/minha-conta", label: "Minha conta", icon: <UserCircle size={16} /> },
 ];
 
 
