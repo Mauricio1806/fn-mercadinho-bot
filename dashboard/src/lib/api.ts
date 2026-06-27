@@ -20,6 +20,9 @@ import type {
   Conversation,
   ConversationStatus,
   Message,
+  AdminUser,
+  AdminUserCreate,
+  AdminUserCreateResponse,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
@@ -253,4 +256,32 @@ export async function getConversationMessages(id: string): Promise<Message[]> {
 
 export async function takeoverConversation(id: string): Promise<void> {
   await api.post(`/api/conversations/${id}/takeover`);
+}
+
+
+// ── Admin Users (platform owner only) ──────────────────────────────────
+export async function listAdminUsers(): Promise<AdminUser[]> {
+  const resp = await api.get<AdminUser[]>("/api/admin-users/");
+  return resp.data;
+}
+
+export async function createAdminUser(body: AdminUserCreate): Promise<AdminUserCreateResponse> {
+  const resp = await api.post<AdminUserCreateResponse>("/api/admin-users/", body);
+  return resp.data;
+}
+
+export async function updateAdminUser(
+  userId: string,
+  body: { full_name?: string; is_active?: boolean; reset_password?: boolean }
+): Promise<{ user: AdminUser; temp_password?: string }> {
+  const resp = await api.patch<AdminUser>(`/api/admin-users/${userId}`, body);
+  const tempPw = resp.headers["x-temp-password"] as string | undefined;
+  return { user: resp.data, temp_password: tempPw };
+}
+
+export async function changeMyPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post("/api/auth/change-password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
 }

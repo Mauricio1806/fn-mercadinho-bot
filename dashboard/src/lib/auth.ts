@@ -12,6 +12,7 @@ export interface JWTPayload {
   tenant_id: string | null;
   email: string;
   full_name: string;
+  must_change_password?: boolean;
   branding: {
     cor_primaria: string;
     cor_secundaria: string;
@@ -92,4 +93,9 @@ export function isPlatformOwner(): boolean {
     return true;
   }
   return false;
+}
+
+
+export function mustChangePassword(): boolean {
+  return getTokenPayload()?.must_change_password === true;
 }

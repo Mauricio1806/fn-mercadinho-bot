@@ -5,7 +5,7 @@
 
 import { NavLink } from "react-router-dom";
 import { useBranding } from "@/providers/BrandingProvider";
-import { logout } from "@/lib/auth";
+import { logout, isPlatformOwner } from "@/lib/auth";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -14,6 +14,7 @@ import {
   Users,
   Settings as SettingsIcon,
   HelpCircle,
+  Users as UsersIcon2,
   LogOut,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -37,7 +38,9 @@ const tenantNav: NavLinkItem[] = [
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const branding = useBranding();
-  const items = tenantNav;
+  const items = isPlatformOwner()
+    ? [...tenantNav, { to: "/usuarios", label: "Usuários", icon: <UsersIcon2 size={16} /> }]
+    : tenantNav;
 
   return (
     <div className="app-layout">

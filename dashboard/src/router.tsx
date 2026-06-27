@@ -9,15 +9,25 @@ import { TenantDashboard } from "@/pages/tenant/Dashboard";
 import { Orders } from "@/pages/tenant/Orders";
 import { Products } from "@/pages/tenant/Products";
 import { Settings } from "@/pages/tenant/Settings";
-import { isAuthenticated } from "@/lib/auth";
+import { isAuthenticated, mustChangePassword, isPlatformOwner } from "@/lib/auth";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import { useState } from "react";
 import { Customers } from "@/pages/tenant/Customers";
 import { Conversations } from "@/pages/tenant/Conversations";
 import { Ajuda } from "@/pages/tenant/Ajuda";
+import { TrocarSenha } from "@/pages/TrocarSenha";
+import { Usuarios } from "@/pages/admin/Usuarios";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/trocar-senha" replace />;
+  return <>{children}</>;
+}
+
+function RequirePlatformOwner({ children }: { children: React.ReactNode }) {
+  if (!isAuthenticated()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/trocar-senha" replace />;
+  if (!isPlatformOwner()) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -89,6 +99,8 @@ export function AppRouter() {
         <Route path="/customers" element={<RequireAuth><AppLayout><Customers /></AppLayout></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><AppLayout><Settings /></AppLayout></RequireAuth>} />
         <Route path="/ajuda" element={<RequireAuth><AppLayout><Ajuda /></AppLayout></RequireAuth>} />
+        <Route path="/trocar-senha" element={isAuthenticated() ? <TrocarSenha /> : <Navigate to="/login" replace />} />
+        <Route path="/usuarios" element={<RequirePlatformOwner><AppLayout><Usuarios /></AppLayout></RequirePlatformOwner>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

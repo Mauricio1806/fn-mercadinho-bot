@@ -232,3 +232,32 @@ export interface Message {
   tokens_used: number | null;
   created_at: string | null;
 }
+
+
+// ── Admin Users ────────────────────────────────────────────────────────
+
+export type AdminRole = "superadmin" | "tenant_admin" | "tenant_viewer";
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: AdminRole;
+  tenant_id: string | null;
+  tenant_name: string | null;
+  is_active: boolean;
+  must_change_password: boolean;
+  password_changed_at: string | null;
+  created_at: string;
+}
+
+export interface AdminUserCreate {
+  email: string;
+  full_name: string;
+  tenant_id: string;
+}
+
+export interface AdminUserCreateResponse {
+  user: AdminUser;
+  temp_password: string;
+}
