@@ -162,9 +162,21 @@ function CreateModal({ tenants, onClose, onCreated }: { tenants: TenantSummary[]
       <Field label="Email">
         <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cliente@empresa.com" />
       </Field>
-      <p style={{ fontSize: 11.5, color: "var(--color-text-muted)", marginTop: 4 }}>
-        Senha temporária gerada. O usuário troca depois.
-      </p>
+      <div style={{
+        marginTop: 4,
+        padding: 10,
+        background: "var(--color-surface-2)",
+        borderRadius: 8,
+        fontSize: 11.5,
+        lineHeight: 1.6,
+        color: "var(--color-text-muted)",
+      }}>
+        📋 Ao clicar em "Criar usuário", uma <strong>senha temporária</strong> é gerada
+        automaticamente e aparece UMA vez na próxima tela.
+        <br /><br />
+        🔒 Copie e envie pro cliente — depois disso, ninguém (nem você) vê a senha de novo.
+        O cliente troca a senha no primeiro login e ela passa a ser só dele.
+      </div>
       <button className="btn btn-primary" onClick={() => create.mutate()}
         disabled={create.isPending || !email || !fullName || !tenantId}
         style={{ marginTop: 12, width: "100%" }}>
@@ -178,9 +190,18 @@ function TempPwModal({ email, pw, onClose }: { email: string; pw: string; onClos
   const copy = () => { navigator.clipboard.writeText(pw); toast.success("Senha copiada."); };
   return (
     <ModalShell title="Senha temporária gerada" onClose={onClose}>
-      <p style={{ fontSize: 13, marginBottom: 12 }}>
-        Manda essas credenciais pro cliente. Esta é a <strong>única vez</strong> que essa senha aparece.
-      </p>
+      <div style={{
+        padding: 12,
+        background: "rgba(245,158,11,0.10)",
+        border: "1px solid rgba(245,158,11,0.30)",
+        borderRadius: 8,
+        marginBottom: 12,
+        fontSize: 12.5,
+        lineHeight: 1.6,
+      }}>
+        ⚠️ <strong>Anota ou copia AGORA.</strong> Esta senha não aparece de novo.
+        Depois que o cliente trocar no primeiro login, fica privada — você não vê mais.
+      </div>
       <div style={{ background: "var(--color-surface-2)", padding: 16, borderRadius: 8, marginBottom: 12 }}>
         <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", marginBottom: 4 }}>EMAIL</div>
         <div style={{ fontSize: 13, fontFamily: "monospace", marginBottom: 12 }}>{email}</div>
