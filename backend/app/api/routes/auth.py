@@ -37,6 +37,7 @@ async def _build_token_payload(user: AdminUser, db: AsyncSession) -> dict:
         "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         "email": user.email,
         "full_name": user.full_name,
+        "must_change_password": bool(user.must_change_password),
     }
 
     if user.tenant_id and user.role != AdminRole.SUPERADMIN:
@@ -146,3 +147,36 @@ async def get_me(db: AsyncSession = Depends(get_db)) -> dict:
     # Esta rota é wrapper — o middleware injeta o usuário
     # O endpoint real está em middleware/auth.py como dependency
     raise HTTPException(status_code=501, detail="Use o middleware diretamente.")
+
+
+# ── /change-password ──────────────────────────────────────────────
+
+from app.schemas.auth import ChangePasswordRequest
+from app.api.middleware.auth import get_current_admin
+
+
+@router.post("/change-password")
+async def change_password(
+    body: ChangePasswordRequest,
+    user: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Usuário troca a própria senha. Limpa a flag must_change_password."""
+    if not _bcrypt.checkpw(body.current_password.encode(), user.hashed_password.encode()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Senha atual incorreta.",
+        )
+
+    if len(body.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nova senha deve ter ao menos 8 caracteres.",
+        )
+
+    hashed = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
+    user.hashed_password = hashed
+    user.must_change_password = False
+    user.password_changed_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"status": "ok"}

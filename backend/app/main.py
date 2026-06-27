@@ -112,6 +112,8 @@ def create_app() -> FastAPI:
     app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
     app.include_router(recovery_router, prefix="/api/recovery", tags=["recovery"])
     app.include_router(integrations_router, prefix="/api/integrations", tags=["integrations"])
+    from app.api.routes.admin_users import router as admin_users_router
+    app.include_router(admin_users_router, prefix="/api/admin-users", tags=["admin-users"])
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict[str, str]:

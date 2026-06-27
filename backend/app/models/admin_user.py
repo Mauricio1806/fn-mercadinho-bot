@@ -2,7 +2,8 @@
 
 import enum
 
-from sqlalchemy import Boolean, Enum, ForeignKey, String
+from datetime import datetime
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin, UUIDType
@@ -23,6 +24,8 @@ class AdminUser(UUIDMixin, TimestampMixin, Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(100), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     role: Mapped[AdminRole] = mapped_column(
         Enum(AdminRole),
