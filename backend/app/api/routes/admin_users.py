@@ -66,8 +66,8 @@ def _to_response(user: AdminUser, tenant_name: str | None) -> AdminUserResponse:
         tenant_id=str(user.tenant_id) if user.tenant_id else None,
         tenant_name=tenant_name,
         is_active=user.is_active,
-        must_change_password=bool(user.must_change_password),
-        password_changed_at=user.password_changed_at.isoformat() if user.password_changed_at else None,
+        must_change_password=bool(getattr(user, 'must_change_password', False)),
+        password_changed_at=user.password_changed_at.isoformat() if getattr(user, 'password_changed_at', None) else None,
         created_at=user.created_at.isoformat() if user.created_at else "",
     )
 

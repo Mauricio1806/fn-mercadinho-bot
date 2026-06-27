@@ -37,7 +37,7 @@ async def _build_token_payload(user: AdminUser, db: AsyncSession) -> dict:
         "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         "email": user.email,
         "full_name": user.full_name,
-        "must_change_password": bool(user.must_change_password),
+        "must_change_password": bool(getattr(user, "must_change_password", False)),
     }
 
     if user.tenant_id and user.role != AdminRole.SUPERADMIN:
@@ -176,7 +176,9 @@ async def change_password(
 
     hashed = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
     user.hashed_password = hashed
-    user.must_change_password = False
-    user.password_changed_at = datetime.now(timezone.utc)
+    if hasattr(user, "must_change_password"):
+        user.must_change_password = False
+    if hasattr(user, "password_changed_at"):
+        user.password_changed_at = datetime.now(timezone.utc)
     await db.commit()
     return {"status": "ok"}
