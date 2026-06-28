@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<title>Proposta Mercazap — Torradinha</title>
+<meta name="description" content="Mercazap — seu mercadinho vendendo no WhatsApp 24h. Proposta exclusiva para Torradinha.">
+<meta property="og:title" content="Proposta Mercazap — Torradinha">
+<meta property="og:description" content="Seu mercadinho vendendo no WhatsApp 24h">
+<meta property="og:type" content="website">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #0a0a0f;
+  color: #e5e7eb;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+/* Hero */
+.hero {
+  padding: 60px 20px 50px;
+  text-align: center;
+  background: linear-gradient(180deg, #0f1729 0%, #0a0a0f 100%);
+  border-bottom: 1px solid #1f2937;
+}
+.logo {
+  width: 80px; height: 80px;
+  background: #2563EB;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 24px rgba(37,99,235,0.3);
+}
+.brand { font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.tag { font-size: 16px; color: #9ca3af; margin-bottom: 32px; }
+.badge {
+  display: inline-block;
+  background: rgba(37,99,235,0.15);
+  border: 1px solid #2563EB;
+  color: #60a5fa;
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+.client-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.client-sub { font-size: 13px; color: #9ca3af; }
+
+/* Sections */
+.section { padding: 50px 0; border-bottom: 1px solid #1f2937; }
+.section h2 {
+  font-size: 26px;
+  color: #fff;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.section .subtitle { color: #9ca3af; margin-bottom: 28px; font-size: 14px; }
+
+/* Cards */
+.card {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.card-highlight {
+  background: linear-gradient(135deg, rgba(37,99,235,0.10), rgba(37,99,235,0.04));
+  border-color: #2563EB;
+}
+
+/* Stats */
+.stat-big {
+  font-size: 56px;
+  font-weight: 800;
+  color: #2563EB;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.stat-label { color: #d1d5db; font-size: 15px; }
+
+/* Lista de features */
+.feature {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid #1f2937;
+  align-items: flex-start;
+}
+.feature:last-child { border-bottom: none; padding-bottom: 0; }
+.feature-icon { font-size: 22px; flex-shrink: 0; }
+.feature-text { color: #d1d5db; font-size: 14.5px; }
+.feature-text strong { color: #fff; }
+
+/* Chat */
+.chat-container { background: #0f1729; padding: 20px; border-radius: 14px; margin: 16px 0; }
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  margin-bottom: 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.bubble.bot {
+  background: #1f2937;
+  border-bottom-left-radius: 4px;
+  color: #e5e7eb;
+}
+.bubble.user {
+  background: #2563EB;
+  color: white;
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
+}
+.notif {
+  background: rgba(22,163,74,0.10);
+  border: 1px solid #16a34a;
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 14px;
+  color: #4ade80;
+  font-size: 13px;
+}
+.notif strong { display: block; font-size: 15px; margin-top: 4px; color: #86efac; }
+
+/* Tabela */
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.compare-table th, .compare-table td {
+  padding: 10px 8px;
+  text-align: center;
+  border-bottom: 1px solid #1f2937;
+}
+.compare-table th { background: #2563EB; color: white; font-weight: 600; font-size: 12px; }
+.compare-table td:first-child, .compare-table th:first-child {
+  text-align: left;
+  color: #d1d5db;
+  font-weight: 500;
+}
+.compare-table .yes { color: #4ade80; font-weight: 700; }
+.compare-table .no { color: #ef4444; }
+.compare-table .mercazap-col { background: rgba(37,99,235,0.08); }
+
+/* Preço */
+.price-card {
+  background: linear-gradient(135deg, #fbbf2410, #2563EB10);
+  border: 2px solid #fbbf24;
+  border-radius: 16px;
+  padding: 32px 24px;
+  text-align: center;
+  margin: 16px 0;
+}
+.price-card .header {
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 24px;
+}
+.price-row { margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px dashed #374151; }
+.price-row:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.price-row .label { color: #9ca3af; font-size: 13px; margin-bottom: 4px; }
+.price-row .value-zero { font-size: 48px; font-weight: 800; color: #4ade80; line-height: 1; }
+.price-row .value-blue { font-size: 48px; font-weight: 800; color: #2563EB; line-height: 1; }
+.price-row .value-small { font-size: 28px; font-weight: 800; color: #2563EB; line-height: 1; }
+.price-row .desc { color: #6b7280; font-size: 12px; margin-top: 6px; font-style: italic; }
+
+/* CTA */
+.cta-section {
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+  padding: 60px 20px;
+  text-align: center;
+}
+.cta-section h2 { color: white; font-size: 32px; margin-bottom: 12px; }
+.cta-section p { color: #bfdbfe; font-size: 16px; margin-bottom: 28px; }
+.btn-cta {
+  display: inline-block;
+  background: white;
+  color: #2563EB;
+  padding: 18px 36px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 17px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  transition: transform 0.15s;
+}
+.btn-cta:active { transform: scale(0.97); }
+.cta-meta { color: #93c5fd; font-size: 13px; margin-top: 20px; }
+
+/* Sticky bottom CTA mobile */
+.sticky-cta {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10,10,15,0.95);
+  backdrop-filter: blur(10px);
+  padding: 12px 16px;
+  border-top: 1px solid #2563EB;
+  z-index: 100;
+  display: none;
+}
+.sticky-cta a {
+  display: block;
+  background: #2563EB;
+  color: white;
+  text-align: center;
+  padding: 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .sticky-cta { display: block; }
+  body { padding-bottom: 80px; }
+  .stat-big { font-size: 44px; }
+  .section h2 { font-size: 22px; }
+  .price-row .value-zero, .price-row .value-blue { font-size: 40px; }
+  .compare-table th, .compare-table td { padding: 8px 4px; font-size: 11px; }
+}
+
+/* Footer */
+.footer {
+  padding: 30px 20px 40px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo">M</div>
+  <div class="brand">Mercazap</div>
+  <div class="tag">Seu mercadinho vendendo no WhatsApp 24h</div>
+  <div class="badge">Proposta exclusiva</div>
+  <div class="client-name">Torradinha</div>
+  <div class="client-sub">Cliente fundador • Junho 2026</div>
+</div>
+
+<div class="container">
+
+  <div class="section">
+    <h2>O problema</h2>
+    <p class="subtitle">Por que mercadinho de bairro perde venda todo dia</p>
+
+    <div class="card">
+      <p style="color:#d1d5db; font-size:14.5px; margin-bottom:14px;">
+        Cliente manda mensagem às 22h pedindo lista de preços. Você tá dormindo.
+        Cliente compra do concorrente que respondeu primeiro.
+      </p>
+      <p style="color:#fff; font-weight:600; font-size:15px;">
+        Você perdeu a venda sem nem saber que ela existiu.
+      </p>
+    </div>
+
+    <div class="card card-highlight" style="text-align:center;">
+      <div class="stat-big">73%</div>
+      <div class="stat-label">dos pedidos chegam <strong style="color:#fff;">fora do horário</strong> comercial</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>A solução</h2>
+    <p class="subtitle">Mercazap é seu vendedor 24h no WhatsApp</p>
+
+    <div class="card">
+      <div class="feature">
+        <div class="feature-icon">📱</div>
+        <div class="feature-text"><strong>Atende 24h</strong>, todo dia, sem cansar</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🛒</div>
+        <div class="feature-text"><strong>Mostra produtos</strong> e monta o pedido sozinho</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📍</div>
+        <div class="feature-text"><strong>Pergunta endereço</strong> e calcula taxa de entrega</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💳</div>
+        <div class="feature-text"><strong>Gera Pix</strong> e confirma pagamento automaticamente</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🚚</div>
+        <div class="feature-text"><strong>Avisa o cliente</strong> quando o pedido sai pra entrega</div>
+      </div>
+    </div>
+
+    <div class="card card-highlight">
+      <p style="color:#fff; font-weight:600; text-align:center; font-size:15px;">
+        Você só recebe a notificação dos pedidos prontos pra preparar e entregar.
+      </p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Como é pra seu cliente</h2>
+    <p class="subtitle">Conversa real, no WhatsApp normal</p>
+
+    <div class="chat-container">
+      <div class="bubble user">Boa noite, vocês têm leite?</div>
+      <div class="bubble bot">Boa noite! Temos sim 👋<br><br>• Leite Itambé — R$ 5,90<br>• Leite Piracanjuba — R$ 6,50<br><br>Quer adicionar?</div>
+      <div class="bubble user">2 do Itambé</div>
+      <div class="bubble bot">Adicionei 2× Leite Itambé (R$ 11,80). Mais alguma coisa?</div>
+      <div class="bubble user">1 pão também</div>
+      <div class="bubble bot"><strong>Total: R$ 23,80</strong><br>Pix abaixo, manda comprovante:<br>[QR Code]</div>
+      <div class="bubble user">[comprovante.jpg]</div>
+      <div class="bubble bot">Pagamento confirmado ✓<br>Pedido em preparo. Chega em 30min 🛵</div>
+    </div>
+
+    <div class="notif">
+      Enquanto isso, você só recebe:
+      <strong>🛒 Novo pedido pago — Bloco C, apto 304 — R$ 23,80</strong>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Mercazap vs. concorrência</h2>
+    <p class="subtitle">Por que vale mais que iFood, app próprio ou contratar gente</p>
+
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Mercazap</th>
+          <th>iFood</th>
+          <th>Funcionário</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Atende 24h</td><td class="mercazap-col yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
+        <tr><td>Sem comissão alta</td><td class="mercazap-col yes">3%</td><td class="no">até 30%</td><td>—</td></tr>
+        <tr><td>WhatsApp normal</td><td class="mercazap-col yes">✓</td><td class="no">✗ (app)</td><td class="yes">✓</td></tr>
+        <tr><td>Pix automático</td><td class="mercazap-col yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
+        <tr><td>Custo previsível</td><td class="mercazap-col yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
+        <tr><td>Suporte direto</td><td class="mercazap-col yes">✓</td><td class="no">✗</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Investimento</h2>
+    <p class="subtitle">Oferta exclusiva de cliente fundador</p>
+
+    <div class="price-card">
+      <div class="header">★ CONDIÇÃO DE CLIENTE FUNDADOR ★</div>
+
+      <div class="price-row">
+        <div class="label">Setup completo</div>
+        <div class="value-zero">R$ 0</div>
+        <div class="desc">instalação, configuração e treinamento grátis</div>
+      </div>
+
+      <div class="price-row">
+        <div class="label">Mensalidade</div>
+        <div class="value-blue">R$ 149/mês</div>
+        <div class="desc">preço travado pra sempre — não sobe nunca</div>
+      </div>
+
+      <div class="price-row">
+        <div class="label">Comissão por venda (a partir do 2º mês)</div>
+        <div class="value-small">3%</div>
+        <div class="desc">só paga se o bot vender — alinhamento total de interesses</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p style="color:#fff; font-weight:600; margin-bottom:12px;">Tudo incluso:</p>
+      <div class="feature"><div class="feature-icon" style="color:#4ade80;">✓</div><div class="feature-text">Atendimento 24h ilimitado</div></div>
+      <div class="feature"><div class="feature-icon" style="color:#4ade80;">✓</div><div class="feature-text">Painel completo com pedidos, conversas, clientes</div></div>
+      <div class="feature"><div class="feature-icon" style="color:#4ade80;">✓</div><div class="feature-text">Suporte direto comigo no WhatsApp</div></div>
+      <div class="feature"><div class="feature-icon" style="color:#4ade80;">✓</div><div class="feature-text">Atualizações e novas funções grátis</div></div>
+      <div class="feature"><div class="feature-icon" style="color:#4ade80;">✓</div><div class="feature-text">Sem fidelidade — cancela quando quiser</div></div>
+    </div>
+
+    <div class="card" style="background:rgba(37,99,235,0.08); border-color:#2563EB;">
+      <p style="color:#fff; font-size:14px; line-height:1.7;">
+        <strong>Comparação real:</strong> iFood cobra até 30% de comissão.
+        Em R$ 10.000 de venda no app, você pagaria <strong style="color:#ef4444;">R$ 3.000</strong>.
+        No Mercazap, pagaria <strong style="color:#4ade80;">R$ 300</strong>.
+        Economia de R$ 2.700/mês.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<div class="cta-section">
+  <h2>Vamos começar?</h2>
+  <p>Em 3 dias o bot está atendendo seus clientes</p>
+  <a href="https://wa.me/5571988133151?text=Ol%C3%A1%20Mauricio!%20Vi%20a%20proposta%20do%20Mercazap%20e%20quero%20fechar%20pra%20Torradinha" class="btn-cta">
+    💬 Aceitar proposta no WhatsApp
+  </a>
+  <div class="cta-meta">
+    Mauricio Behrens • +55 71 98813-3151<br>
+    Proposta válida por 7 dias
+  </div>
+</div>
+
+<div class="footer">
+  Mercazap • mercazap.com.br<br>
+  Proposta gerada em Junho/2026
+</div>
+
+<div class="sticky-cta">
+  <a href="https://wa.me/5571988133151?text=Ol%C3%A1%20Mauricio!%20Vi%20a%20proposta%20do%20Mercazap%20e%20quero%20fechar%20pra%20Torradinha">
+    💬 Aceitar proposta
+  </a>
+</div>
+
+</body>
+</html>
