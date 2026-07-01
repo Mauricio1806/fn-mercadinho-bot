@@ -99,6 +99,9 @@ def create_app() -> FastAPI:
     from app.api.routes.tenants import router as tenants_router
     from app.api.routes.integrations import router as integrations_router
 
+    from app.security.log_masking import install_masking_filter
+    install_masking_filter()
+
     app.include_router(webhook_router, prefix="/webhook", tags=["webhook"])
     app.include_router(webhooks_mgmt_router, prefix="/api/webhooks", tags=["webhooks"])
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])

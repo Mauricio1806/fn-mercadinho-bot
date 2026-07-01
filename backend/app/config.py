@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # JWT
     jwt_secret: str = "change_this_in_production"
+    credentials_master_key: str = ""  # Fernet key (32-byte urlsafe base64). Sem ela, vault não funciona.
     jwt_algorithm: str = "HS256"
     jwt_access_expire_minutes: int = 15
     jwt_refresh_expire_days: int = 7

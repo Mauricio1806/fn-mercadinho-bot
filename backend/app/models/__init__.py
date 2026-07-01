@@ -23,3 +23,5 @@ __all__ = [
     "AdminRole",
     "PixReceiptLog",
 ]
+
+from app.models.integration_credential import IntegrationCredential  # noqa: F401
